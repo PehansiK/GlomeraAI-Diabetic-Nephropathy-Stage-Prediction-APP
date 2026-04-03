@@ -700,3 +700,78 @@ if st.session_state.current_page == 0:
         if st.button("Continue to Lifestyle", type="primary", use_container_width=True):
             st.session_state.current_page = 1
             st.rerun()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 1 — Lifestyle
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.current_page == 1:
+    st.markdown(stepper_html(1), unsafe_allow_html=True)
+ 
+    st.markdown("""
+    <div class="model-badge xgb">
+      <h4>Lifestyle Model (M2) — Medications, Activity & Diet</h4>
+      <p>Key indicators: Kidney Disease History · Hypertension · Insulin Use · Physical Activity · Phosphorus</p>
+    </div>""", unsafe_allow_html=True)
+ 
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Medications & Diagnoses**")
+        dm_dx       = st.selectbox("Diabetes Diagnosed?",                  [1, 0], format_func=lambda x: "Yes" if x else "No", key="dm_dx")
+        insulin_use = st.selectbox("Currently using insulin?",             [0, 1], format_func=lambda x: "Yes" if x else "No", key="insulin_use")
+        oral_meds   = st.selectbox("Taking oral diabetes medications?",    [0, 1], format_func=lambda x: "Yes" if x else "No", key="oral_meds")
+        htn_dx      = st.selectbox("Diagnosed with high blood pressure?",  [0, 1], format_func=lambda x: "Yes" if x else "No", key="htn_dx")
+        bp_med      = st.selectbox("Taking blood pressure medication?",    [0, 1], format_func=lambda x: "Yes" if x else "No", key="bp_med")
+        statin      = st.selectbox("Taking statins?",                      [0, 1], format_func=lambda x: "Yes" if x else "No", key="statin")
+ 
+        st.markdown("**Kidney History**")
+        kidney_hx    = st.selectbox("History of kidney disease?",  [0, 1], format_func=lambda x: "Yes" if x else "No", key="kidney_hx")
+        kidney_stone = st.selectbox("History of kidney stones?",   [0, 1], format_func=lambda x: "Yes" if x else "No", key="kidney_stone")
+        nocturia     = st.selectbox("Waking at night to urinate?", [0, 1], format_func=lambda x: "Yes" if x else "No", key="nocturia")
+ 
+    with col2:
+        st.markdown("**Physical Activity & Lifestyle**")
+        smoker      = st.selectbox("Smoking status", [0, 1, 2],
+                                   format_func=lambda x: ["Never smoked", "Former smoker", "Current smoker"][x],
+                                   key="smoker")
+        alcohol     = st.number_input("Average alcohol (drinks/day)", 0.0, 20.0, 0.3, step=0.1, key="alcohol")
+        vig_leisure = st.selectbox("Does the patient do vigorous exercise?", [0, 1],
+                                   format_func=lambda x: "Yes" if x else "No", key="vig_leisure")
+        sedentary   = st.number_input("Sedentary time per day (minutes)", 0, 1440, 300, key="sedentary")
+        sleep_h     = st.number_input("Average weekday sleep (hours)", 2.0, 14.0, 7.0, step=0.5, key="sleep_h")
+ 
+        st.markdown("**Dietary Intake (daily averages)**")
+        sodium     = st.number_input("Dietary Sodium (mg/day)",     100.0, 15000.0, 2800.0, key="sodium")
+        protein    = st.number_input("Dietary Protein (g/day)",       5.0,   400.0,   85.0, key="protein")
+        potassium  = st.number_input("Dietary Potassium (mg/day)",  200.0,  8000.0, 2800.0, key="potassium")
+        phosphorus = st.number_input("Dietary Phosphorus (mg/day)", 100.0,  4000.0, 1100.0, key="phosphorus")
+ 
+    st.session_state.patient_data.update({
+        "diabetes_diagnosed": dm_dx,
+        "insulin_use": insulin_use,
+        "oral_diabetes_meds": oral_meds,
+        "hypertension_diagnosed": htn_dx,
+        "bp_medication": bp_med,
+        "statin_use": statin,
+        "current_smoker_status": smoker,
+        "avg_alcohol_drinks_per_day": alcohol,
+        "log_avg_alcohol_drinks_per_day": np.log1p(alcohol),
+        "vigorous_leisure_activity": vig_leisure,
+        "sedentary_minutes_per_day": sedentary,
+        "log_sedentary_minutes_per_day": np.log1p(sedentary),
+        "sleep_hours_weekday": sleep_h,
+        "kidney_disease_history": kidney_hx,
+        "kidney_stone_history": kidney_stone,
+        "nocturia": nocturia,
+        "sodium_mg_day": sodium,
+        "protein_g_day": protein,
+        "potassium_mg_day": potassium,
+        "phosphorus_mg_day": phosphorus,
+    })
+ 
+    col_l, _, col_r = st.columns([2, 2, 2])
+    with col_l:
+        if st.button("Back", use_container_width=True):
+            st.session_state.current_page = 0; st.rerun()
+    with col_r:
+        if st.button("Continue to Demographics", type="primary", use_container_width=True):
+            st.session_state.current_page = 2; st.rerun()
