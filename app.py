@@ -775,3 +775,72 @@ elif st.session_state.current_page == 1:
     with col_r:
         if st.button("Continue to Demographics", type="primary", use_container_width=True):
             st.session_state.current_page = 2; st.rerun()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 2 — Demographics
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.current_page == 2:
+    st.markdown(stepper_html(2), unsafe_allow_html=True)
+ 
+    st.markdown("""
+    <div class="model-badge lr">
+      <h4>Demographics Model (M3) — Patient Background & History</h4>
+      <p>Key indicators: Age · Sex · Ethnicity · BMI · Heart Attack History</p>
+    </div>""", unsafe_allow_html=True)
+ 
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Basic Information**")
+        age  = st.number_input("Patient age (years)", 18, 100, 58, key="age")
+        sex  = st.selectbox("Sex", [0, 1], format_func=lambda x: "Male" if x == 0 else "Female", key="sex")
+        race = st.selectbox("Race/Ethnicity", [1, 2, 3, 4, 6, 7],
+                            format_func=lambda x: {1: "Mexican American", 2: "Other Hispanic",
+                                                   3: "Non-Hispanic White", 4: "Non-Hispanic Black",
+                                                   6: "Non-Hispanic Asian", 7: "Other/Multiracial"}[x],
+                            key="race")
+        st.markdown("**Socioeconomic Background**")
+        education = st.selectbox("Highest education level", [1, 2, 3, 4, 5], index=3,
+                                 format_func=lambda x: {1: "Less than 9th grade", 2: "Some high school",
+                                                         3: "High school / GED", 4: "Some college",
+                                                         5: "College graduate or higher"}[x],
+                                 key="education")
+        income = st.selectbox("Household income category",
+                              [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15], index=7,
+                              format_func=lambda x: {1: "< $5,000", 2: "$5–10k", 3: "$10–15k",
+                                                      4: "$15–20k", 5: "$20–25k", 6: "$25–35k",
+                                                      7: "$35–45k", 8: "$45–55k", 9: "$55–65k",
+                                                      10: "$65–75k", 14: "$75–100k",
+                                                      15: "Over $100,000"}[x],
+                              key="income")
+        food_sec = st.number_input("Food security score (0–18)", 0.0, 18.0, 10.0, step=1.0, key="food_sec")
+ 
+    with col2:
+        st.markdown("**Cardiovascular & Family History**")
+        chd       = st.selectbox("History of coronary heart disease?", [0, 1], format_func=lambda x: "Yes" if x else "No", key="chd")
+        heart_att = st.selectbox("History of heart attack?",           [0, 1], format_func=lambda x: "Yes" if x else "No", key="heart_att")
+        stroke    = st.selectbox("History of stroke?",                 [0, 1], format_func=lambda x: "Yes" if x else "No", key="stroke")
+        fam_hx_dm = st.selectbox("Family history of diabetes?",        [0, 1], format_func=lambda x: "Yes" if x else "No", key="fam_hx_dm")
+ 
+    race_label = {1: "Mexican American", 2: "Other Hispanic", 3: "Non-Hispanic White",
+                  4: "Non-Hispanic Black", 6: "Non-Hispanic Asian", 7: "Other/Multiracial"}[race]
+    sex_label  = "Female" if sex == 1 else "Male"
+    st.markdown(f"""
+    <div class="rec-box blue">
+      <strong>Patient Profile:</strong> {age}-year-old {sex_label} · {race_label}
+    </div>""", unsafe_allow_html=True)
+ 
+    st.session_state.patient_data.update({
+        "age_years": age, "sex_code": sex, "race_ethnicity_code": race,
+        "education_level": education, "household_income_cat": income,
+        "food_security_score": food_sec,
+        "coronary_heart_disease": chd, "heart_attack": heart_att,
+        "stroke_ever": stroke, "family_hx_diabetes": fam_hx_dm,
+    })
+ 
+    col_l, _, col_r = st.columns([2, 2, 2])
+    with col_l:
+        if st.button("Back", use_container_width=True):
+            st.session_state.current_page = 1; st.rerun()
+    with col_r:
+        if st.button("Run AI Assessment", type="primary", use_container_width=True):
+            st.session_state.current_page = 3; st.rerun()
