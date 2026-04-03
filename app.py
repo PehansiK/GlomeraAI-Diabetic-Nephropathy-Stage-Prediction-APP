@@ -600,3 +600,103 @@ with st.sidebar:
     NHANES 2015–2020 · n ≈ 6,600 · AUC 0.96
     </div>
     """, unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 0 — Clinical Data
+# ══════════════════════════════════════════════════════════════════════════════
+if st.session_state.current_page == 0:
+    st.markdown(stepper_html(0), unsafe_allow_html=True)
+ 
+    st.markdown("""
+    <div class="model-badge rf">
+      <h4>Clinical Model (M1) — Blood Tests & Kidney Markers</h4>
+      <p>Key indicators: Creatinine · Urine Albumin · Blood Urea · HbA1c · Haemoglobin</p>
+    </div>""", unsafe_allow_html=True)
+ 
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Blood Pressure** *(average of 3 readings)*")
+        sbp1 = st.number_input("Systolic BP — Reading 1 (mmHg)",  80, 220, 130, key="sbp1")
+        dbp1 = st.number_input("Diastolic BP — Reading 1 (mmHg)", 40, 130, 78,  key="dbp1")
+        sbp2 = st.number_input("Systolic BP — Reading 2 (mmHg)",  80, 220, 128, key="sbp2")
+        dbp2 = st.number_input("Diastolic BP — Reading 2 (mmHg)", 40, 130, 76,  key="dbp2")
+        sbp3 = st.number_input("Systolic BP — Reading 3 (mmHg)",  80, 220, 132, key="sbp3")
+        dbp3 = st.number_input("Diastolic BP — Reading 3 (mmHg)", 40, 130, 80,  key="dbp3")
+ 
+        st.markdown("**Kidney & Urine Markers**")
+        serum_cr  = st.number_input("Serum Creatinine (mg/dL)",    0.2,  20.0,   1.1,   step=0.1, key="serum_cr")
+        urine_alb = st.number_input("Urine Albumin (ug/L)",         0.5,  5000.0, 25.0,  step=0.5, key="urine_alb")
+        urine_cr  = st.number_input("Urine Creatinine (mg/dL)",     5.0,  3000.0, 120.0,           key="urine_cr")
+ 
+    with col2:
+        st.markdown("**Metabolic & Blood Chemistry**")
+        hba1c      = st.number_input("HbA1c (%)",                 4.0,  20.0,  7.2,  step=0.1, key="hba1c")
+        fasting_gl = st.number_input("Fasting Glucose (mg/dL)",   40.0, 600.0, 145.0,           key="fasting_gl")
+        insulin    = st.number_input("Fasting Insulin (uIU/mL)",  0.0,  300.0, 12.0,            key="insulin")
+        bun        = st.number_input("Blood Urea Nitrogen (mg/dL)",2.0, 150.0, 16.0,            key="bun")
+        uric_acid  = st.number_input("Uric Acid (mg/dL)",         1.0,  20.0,  5.8,  step=0.1, key="uric_acid")
+ 
+        st.markdown("**Blood Count & Other**")
+        hemoglobin = st.number_input("Haemoglobin (g/dL)",  4.0,  22.0, 13.5, step=0.1, key="hemoglobin")
+        hematocrit = st.number_input("Haematocrit (%)",    10.0,  65.0, 40.0, step=0.5, key="hematocrit")
+        serum_alb  = st.number_input("Serum Albumin (g/dL)", 1.0,  6.0,  4.1, step=0.1, key="serum_alb")
+        crp        = st.number_input("CRP (mg/L)",          0.0,  200.0, 3.5, step=0.1, key="crp")
+ 
+    st.markdown("**Lipid Panel & Body**")
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        tot_chol = st.number_input("Total Cholesterol (mg/dL)", 50.0,  600.0, 195.0, key="tot_chol")
+        ldl      = st.number_input("LDL Cholesterol (mg/dL)",   20.0,  500.0, 115.0, key="ldl")
+    with col_b:
+        hdl  = st.number_input("HDL Cholesterol (mg/dL)", 10.0,  200.0, 48.0,  key="hdl")
+        trig = st.number_input("Triglycerides (mg/dL)",   20.0, 3000.0, 145.0, key="trig")
+    with col_c:
+        bmi = st.number_input("BMI (kg/m²)", 12.0, 80.0, 28.5, step=0.1, key="bmi")
+ 
+    mean_sbp = round((sbp1 + sbp2 + sbp3) / 3, 1)
+    mean_dbp = round((dbp1 + dbp2 + dbp3) / 3, 1)
+    uacr     = round(urine_alb / (urine_cr * 10), 2) if urine_cr > 0 else 0.0
+ 
+    st.markdown(f"""
+    <div class="rec-box blue">
+      <strong>Auto-calculated values:</strong><br>
+      Mean Systolic BP = <strong>{mean_sbp} mmHg</strong> &nbsp;·&nbsp;
+      Mean Diastolic BP = <strong>{mean_dbp} mmHg</strong> &nbsp;·&nbsp;
+      UACR = <strong>{uacr:.1f} mg/g</strong>
+    </div>""", unsafe_allow_html=True)
+ 
+    st.session_state.patient_data.update({
+        "mean_sbp": mean_sbp, "mean_dbp": mean_dbp,
+        "serum_creatinine_mgdl": serum_cr,
+        "log_serum_creatinine_mgdl": np.log1p(serum_cr),
+        "urine_albumin_ugl": urine_alb,
+        "log_urine_albumin_ugl": np.log1p(urine_alb),
+        "urine_creatinine_mgdl": urine_cr,
+        "uacr_mgg": uacr,
+        "log_uacr": np.log10(max(uacr, 0.01)),
+        "hba1c_pct": hba1c,
+        "fasting_glucose_mgdl": fasting_gl,
+        "log_fasting_glucose_mgdl": np.log1p(fasting_gl),
+        "insulin_uiml": insulin,
+        "log_insulin_uiml": np.log1p(insulin),
+        "bun_mgdl": bun,
+        "log_bun_mgdl": np.log1p(bun),
+        "uric_acid_mgdl": uric_acid,
+        "hemoglobin_gdl": hemoglobin,
+        "hematocrit_pct": hematocrit,
+        "serum_albumin_gdl": serum_alb,
+        "crp_mgL": crp,
+        "log_crp_mgL": np.log1p(crp),
+        "total_cholesterol_mgdl": tot_chol,
+        "ldl_cholesterol_mgdl": ldl,
+        "hdl_cholesterol_mgdl": hdl,
+        "triglycerides_mgdl": trig,
+        "log_triglycerides_mgdl": np.log1p(trig),
+        "bmi_kgm2": bmi,
+    })
+ 
+    _, col_btn, _ = st.columns([2, 3, 2])
+    with col_btn:
+        if st.button("Continue to Lifestyle", type="primary", use_container_width=True):
+            st.session_state.current_page = 1
+            st.rerun()
