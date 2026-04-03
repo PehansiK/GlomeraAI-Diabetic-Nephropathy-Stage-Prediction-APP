@@ -533,3 +533,70 @@ def urgency_chip(text):
     }
     chip_color = next((v for k, v in color_map.items() if text.startswith(k)), "blue")
     return f'<span class="chip {chip_color}">{text}</span>'
+
+# ── App header ─────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="app-header">
+  <div style="font-size:1.8rem;line-height:1">🔬</div>
+  <div>
+    <p class="app-header-title">GlomeraAI</p>
+    <p class="app-header-sub">DKD Clinical Decision Support &nbsp;·&nbsp; Multimodel Ensemble · KDIGO 2022 Staging · Fairness-Audited · Explainable AI</p>
+  </div>
+</div>
+""", unsafe_allow_html=True)
+ 
+# ── Load model ─────────────────────────────────────────────────────────────────
+with st.spinner("Loading AI model..."):
+    mdl, load_err = load_model_from_hf()
+ 
+if load_err:
+    st.error(f"Model loading failed. {load_err}")
+    st.info("Ensure MODEL_URL is set in Streamlit secrets pointing to DKD_complete_artifacts.pkl.")
+    st.stop()
+ 
+# ── Sidebar ────────────────────────────────────────────────────────────────────
+with st.sidebar:
+    st.markdown("### 🔬 GlomeraAI")
+    st.markdown("---")
+ 
+    current = st.session_state.current_page
+    nav_labels = {
+        0: "Clinical Data",
+        1: "Lifestyle",
+        2: "Demographics",
+        3: "Results",
+        4: "Demo",
+    }
+ 
+    for pg, label in nav_labels.items():
+        is_active = pg == current
+        if is_active:
+            st.markdown('<div class="nav-active">', unsafe_allow_html=True)
+        prefix = "▶ " if is_active else ("✓ " if pg < current else "  ")
+        if st.button(f"{prefix}{label}", key=f"nav_btn_{pg}"):
+            st.session_state.current_page = pg
+            st.rerun()
+        if is_active:
+            st.markdown('</div>', unsafe_allow_html=True)
+ 
+    st.markdown("---")
+    st.markdown("#### How this AI works")
+    st.markdown("""
+    <div style="font-size:.78rem;line-height:1.7;color:#94a3b8">
+    Three models analyse different aspects of your patient and combine their findings:<br><br>
+    <span style="color:#60a5fa;font-weight:600">Clinical Model (M1)</span><br>
+    Blood tests and kidney markers<br><br>
+    <span style="color:#fb923c;font-weight:600">Lifestyle Model (M2)</span><br>
+    Medications, activity, diet<br><br>
+    <span style="color:#a78bfa;font-weight:600">Demographics Model (M3)</span><br>
+    Age, sex, ethnicity, history<br><br>
+    <span style="color:#94a3b8;font-weight:600">Combined Decision</span><br>
+    All three models vote; the meta-learner weighs their agreement
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("""
+    <div style="font-size:.7rem;color:#475569;text-align:center">
+    NHANES 2015–2020 · n ≈ 6,600 · AUC 0.96
+    </div>
+    """, unsafe_allow_html=True)
