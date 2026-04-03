@@ -1212,3 +1212,22 @@ elif st.session_state.current_page == 3:
     with col_new:
         if st.button("New Patient", type="primary", use_container_width=True):
             st.session_state.current_page = 0; st.rerun()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 4 — Demo
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.current_page == 4:
+    from pages.demo_page import show_demo_page
+    show_demo_page(
+        mdl=mdl,
+        CLINICAL_CONTEXT=CLINICAL_CONTEXT,
+        STAGE_NAMES=STAGE_NAMES,
+        STAGE_COLORS=STAGE_COLORS,
+        STAGE_BG=STAGE_BG,
+        STAGE_RECOMMENDATIONS=STAGE_RECOMMENDATIONS,
+        N_CLASSES=N_CLASSES,
+        build_patient_vector=build_patient_vector,
+        run_ensemble=run_ensemble,
+        compute_shap_patient=compute_shap_patient,
+        progression_risk_profile=progression_risk_profile,
+    )
