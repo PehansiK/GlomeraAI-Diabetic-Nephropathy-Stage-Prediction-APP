@@ -273,3 +273,135 @@ div[data-testid="stSidebarContent"] .nav-active .stButton > button {
 .driver-row.prot { background: #f0fdf4; }
 </style>
 """, unsafe_allow_html=True)
+
+# ── Constants ──────────────────────────────────────────────────────────────────
+N_CLASSES = 6
+ 
+STAGE_NAMES = {
+    0: "No DKD",
+    1: "Stage 1 — Microalbuminuria",
+    2: "Stage 2 — Mild GFR Decrease",
+    3: "Stage 3 — Moderate GFR Decrease",
+    4: "Stage 4 — Severe GFR Decrease",
+    5: "Stage 5 — Kidney Failure",
+}
+STAGE_COLORS = {
+    0: "#22c55e", 1: "#f59e0b", 2: "#f97316",
+    3: "#ef4444", 4: "#8b5cf6", 5: "#0f172a",
+}
+STAGE_BG = {
+    0: "#f0fdf4", 1: "#fffbeb", 2: "#fff7ed",
+    3: "#fff1f2", 4: "#faf5ff", 5: "#f1f5f9",
+}
+ 
+STAGE_RECOMMENDATIONS = {
+    0: {
+        "headline": "No diabetic kidney disease detected at this time.",
+        "actions": [
+            "Continue annual kidney monitoring (eGFR + urine albumin test)",
+            "Keep blood sugar well controlled (HbA1c target below 7%)",
+            "Maintain blood pressure below 130/80 mmHg",
+            "Encourage healthy weight, diet, and regular activity",
+        ],
+        "urgency": "Routine follow-up",
+    },
+    1: {
+        "headline": "Early kidney damage — protein leaking into urine detected.",
+        "actions": [
+            "Start blood pressure medication (ACE inhibitor or ARB) to protect kidneys",
+            "Set blood pressure target below 130/80 mmHg",
+            "Tighten blood sugar control (HbA1c below 7%)",
+            "Repeat urine albumin test in 3 months to confirm",
+        ],
+        "urgency": "Within 4 weeks",
+    },
+    2: {
+        "headline": "Kidney filtering function is beginning to decline.",
+        "actions": [
+            "Refer to a kidney specialist (nephrologist)",
+            "Reduce dietary protein intake (0.8 g per kg body weight per day)",
+            "Review and adjust any medications that may strain the kidneys",
+            "Optimise blood pressure and blood sugar control",
+        ],
+        "urgency": "Within 2–4 weeks",
+    },
+    3: {
+        "headline": "Significant kidney function loss — specialist care needed now.",
+        "actions": [
+            "Urgent nephrology co-management required",
+            "Begin discussions about future kidney replacement options",
+            "Check and treat anaemia (low haemoglobin)",
+            "Strict fluid, salt, and potassium management",
+        ],
+        "urgency": "Urgent — within 1 week",
+    },
+    4: {
+        "headline": "Severe kidney function loss — prepare for kidney replacement.",
+        "actions": [
+            "Plan for dialysis access surgery (fistula creation)",
+            "Strict fluid and electrolyte management with dietitian",
+            "Full multidisciplinary team care (nephrology, dietitian, social work)",
+            "Transplant evaluation referral",
+        ],
+        "urgency": "Immediate specialist review",
+    },
+    5: {
+        "headline": "Kidney failure — renal replacement therapy required.",
+        "actions": [
+            "Initiate dialysis or arrange kidney transplant evaluation",
+            "Full renal replacement therapy pathway",
+            "Intensive symptom management and multidisciplinary support",
+            "Palliative care consultation if appropriate",
+        ],
+        "urgency": "Emergency/Immediate",
+    },
+}
+ 
+CLINICAL_CONTEXT = {
+    "log_urine_albumin_ugl":         ("Urine Albumin",        "expm1", "Protein leaking into urine — key early damage marker"),
+    "log_serum_creatinine_mgdl":     ("Creatinine",           "expm1", "Waste product in blood — rises when kidneys cannot filter"),
+    "log_bun_mgdl":                  ("Blood Urea (BUN)",     "expm1", "Blood urea nitrogen — rises when kidneys are failing"),
+    "uacr_mgg":                      ("Urine Albumin Ratio",  None,    "Albumin-to-creatinine ratio — key DKD screening marker"),
+    "hba1c_pct":                     ("HbA1c",                None,    "3-month average blood glucose — higher means poorer diabetes control"),
+    "hemoglobin_gdl":                ("Haemoglobin",          None,    "Anaemia develops as kidney function declines"),
+    "hematocrit_pct":                ("Haematocrit",          None,    "Low values signal kidney-related anaemia"),
+    "uric_acid_mgdl":                ("Uric Acid",            None,    "Elevated levels accelerate kidney damage"),
+    "log_crp_mgL":                   ("CRP (Inflammation)",   "expm1", "Inflammation marker — drives kidney disease progression"),
+    "mean_sbp":                      ("Systolic BP",          None,    "High blood pressure directly damages kidney blood vessels"),
+    "mean_dbp":                      ("Diastolic BP",         None,    "Elevated pressure adds strain to kidney filters"),
+    "bmi_kgm2":                      ("BMI",                  None,    "Obesity increases kidney disease risk"),
+    "log_triglycerides_mgdl":        ("Triglycerides",        "expm1", "High blood fats worsen kidney disease outlook"),
+    "hdl_cholesterol_mgdl":          ("HDL Cholesterol",      None,    "Low HDL independently predicts kidney decline"),
+    "log_insulin_uiml":              ("Insulin Level",        "expm1", "High fasting insulin signals insulin resistance"),
+    "serum_albumin_gdl":             ("Serum Albumin",        None,    "Low albumin indicates poor nutrition from kidney disease"),
+    "urine_creatinine_mgdl":         ("Urine Creatinine",     None,    "Used to calculate urine albumin ratio (UACR)"),
+    "kidney_disease_history":        ("Kidney Disease Hx",    None,    "Previous kidney disease strongly predicts DKD"),
+    "hypertension_diagnosed":        ("Hypertension",         None,    "Uncontrolled blood pressure accelerates kidney damage"),
+    "kidney_stone_history":          ("Kidney Stone Hx",      None,    "Associated with chronic kidney disease progression"),
+    "insulin_use":                   ("Insulin Use",          None,    "Signals advanced diabetes requiring insulin"),
+    "phosphorus_mg_day":             ("Dietary Phosphorus",   None,    "High phosphorus intake linked to kidney decline"),
+    "potassium_mg_day":              ("Dietary Potassium",    None,    "Potassium management important in kidney disease"),
+    "current_smoker_status":         ("Smoking",              None,    "Smoking damages kidney blood vessels"),
+    "sedentary_minutes_per_day":     ("Sedentary Time",       None,    "Physical inactivity worsens metabolic health"),
+    "log_sedentary_minutes_per_day": ("Sedentary Time",       "expm1", "Physical inactivity worsens metabolic health"),
+    "vigorous_leisure_activity":     ("Physical Activity",    None,    "Protective — regular exercise reduces kidney disease risk"),
+    "age_years":                     ("Patient Age",          None,    "Older age is a primary kidney disease risk factor"),
+    "race_ethnicity_code":           ("Ethnicity",            None,    "Ethnic differences in kidney disease risk"),
+    "sex_code":                      ("Sex",                  None,    "Sex differences in kidney disease risk trajectory"),
+    "heart_attack":                  ("Heart Attack Hx",      None,    "Cardiovascular history worsens kidney disease prognosis"),
+    "stroke_ever":                   ("Stroke History",       None,    "Stroke indicates widespread vascular disease"),
+    "coronary_heart_disease":        ("Heart Disease",        None,    "Shared disease process with kidney disease"),
+    "family_hx_diabetes":            ("Family Hx Diabetes",   None,    "Genetic predisposition to diabetes and kidney disease"),
+    "education_level":               ("Education Level",      None,    "Proxy for healthcare access and disease management"),
+    "household_income_cat":          ("Income Level",         None,    "Socioeconomic factors affect disease management"),
+}
+ 
+RF_EXPECTED  = ["log_serum_creatinine_mgdl", "log_urine_albumin_ugl", "log_bun_mgdl", "hba1c_pct", "hemoglobin_gdl"]
+XGB_EXPECTED = ["hypertension_diagnosed", "kidney_disease_history", "kidney_stone_history", "insulin_use", "phosphorus_mg_day"]
+LR_EXPECTED  = ["age_years", "race_ethnicity_code", "sex_code", "bmi_kgm2", "heart_attack"]
+ 
+SHAP_EXPLAIN = (
+    "The bars show how much each factor <b>increases</b> (red) or "
+    "<b>decreases</b> (blue) the AI's assessment for this patient. "
+    "Longer bars mean stronger influence."
+)
