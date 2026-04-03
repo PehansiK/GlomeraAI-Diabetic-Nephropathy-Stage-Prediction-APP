@@ -225,3 +225,62 @@ def _build_profiles():
     }
  
     return profiles
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ══════════════════════════════════════════════════════════════════════════════
+def _stepper_html(current):
+    steps = ["Clinical Data", "Lifestyle", "Demographics", "Results"]
+    parts = []
+    for i, label in enumerate(steps):
+        cls  = "done"   if i < current  else ("active" if i == current else "todo")
+        num  = "✓"      if i < current  else str(i + 1)
+        line = "done"   if i < current  else ""
+        dot  = f'<div class="step-dot {cls}">{num}</div>'
+        lbl  = f'<div class="step-label">{label}</div>'
+        inner = f'<div style="display:flex;flex-direction:column;align-items:center">{dot}{lbl}</div>'
+        conn  = f'<div class="step-line {line}"></div>' if i < len(steps) - 1 else ""
+        parts.append(f'<div class="step-item">{inner}{conn}</div>')
+    return '<div class="stepper">' + "".join(parts) + "</div>"
+ 
+def _urgency_chip(text):
+    color_map = {
+        "Routine": "green", "Within 4": "blue", "Within 2": "amber",
+        "Urgent":  "red",   "Immediate": "red", "Emergency": "red",
+    }
+    chip_color = next((v for k, v in color_map.items() if text.startswith(k)), "blue")
+    return f'<span class="chip {chip_color}">{text}</span>'
+ 
+def _display_value(feat, raw_val, CLINICAL_CONTEXT):
+    if feat in CLINICAL_CONTEXT:
+        name, transform, _ = CLINICAL_CONTEXT[feat]
+        if transform == "expm1":
+            return name, float(np.expm1(raw_val))
+        return name, raw_val
+    return feat.replace("_", " ").title(), raw_val
+ 
+def _plot_shap_bar(shap_dict, title, color_pos, color_neg, top_n,
+                   CLINICAL_CONTEXT, highlight_feats=None):
+    items = sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:top_n]
+    if not items:
+        return None
+    labels, vals = [], []
+    for feat, sv in items:
+        name, _ = _display_value(feat, 0, CLINICAL_CONTEXT)[:2]
+        labels.append(name)
+        vals.append(sv)
+    bar_colors = []
+    for feat, sv in items:
+        if sv > 0:
+            bar_colors.append("#f97316" if (highlight_feats and feat in highlight_feats) else color_pos)
+        else:
+            bar_colors.append("#0ea5e9" if (highlight_feats and feat in highlight_feats) else color_neg)
+    fig, ax = plt.subplots(figsize=(8, max(3.5, len(labels) * 0.48)))
+    ax.barh(labels[::-1], vals[::-1], color=bar_colors[::-1], alpha=0.88, height=0.62)
+    ax.axvline(0, color="#374151", lw=0.9, ls="--")
+    ax.set_xlabel("Influence on prediction (SHAP value)", fontsize=9)
+    ax.set_title(title, fontsize=10, fontweight="700")
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.tick_params(labelsize=8.5)
+    plt.tight_layout()
+    return fig
