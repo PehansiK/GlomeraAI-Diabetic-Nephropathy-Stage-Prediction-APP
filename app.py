@@ -405,3 +405,22 @@ SHAP_EXPLAIN = (
     "<b>decreases</b> (blue) the AI's assessment for this patient. "
     "Longer bars mean stronger influence."
 )
+
+# ── Session state ──────────────────────────────────────────────────────────────
+for key, default in [("current_page", 0), ("patient_data", {})]:
+    if key not in st.session_state:
+        st.session_state[key] = default
+ 
+# ── Model loading ──────────────────────────────────────────────────────────────
+@st.cache_resource(show_spinner=False)
+def load_model_from_hf():
+    try:
+        url = st.secrets["MODEL_URL"]
+    except (KeyError, FileNotFoundError):
+        return None, "MODEL_URL secret not configured. Add it to your Streamlit secrets."
+    try:
+        resp = requests.get(url, timeout=240)
+        resp.raise_for_status()
+        return pickle.load(io.BytesIO(resp.content)), None
+    except Exception as exc:
+        return None, f"Could not load model: {exc}"
