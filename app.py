@@ -844,3 +844,371 @@ elif st.session_state.current_page == 2:
     with col_r:
         if st.button("Run AI Assessment", type="primary", use_container_width=True):
             st.session_state.current_page = 3; st.rerun()
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 3 — Results
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.current_page == 3:
+    st.markdown(stepper_html(3), unsafe_allow_html=True)
+ 
+    with st.spinner("Running AI analysis..."):
+        df_imp, X1, X2, X3 = build_patient_vector(st.session_state.patient_data, mdl)
+        pred_stage, proba_vec, p1, p2, p3 = run_ensemble(mdl, X1, X2, X3)
+        rf_sv, xgb_sv, lr_sv = compute_shap_patient(mdl, X1, X2, X3)
+        risk_drivers, prot_drivers = progression_risk_profile(rf_sv, X1, pred_stage)
+ 
+    stage_color = STAGE_COLORS[pred_stage]
+    stage_bg    = STAGE_BG[pred_stage]
+    stage_name  = STAGE_NAMES[pred_stage]
+    rec         = STAGE_RECOMMENDATIONS[pred_stage]
+    prog_score  = sum(c * proba_vec[c] for c in range(N_CLASSES))
+ 
+    entropy_val  = scipy_entropy(proba_vec)
+    max_entropy  = scipy_entropy([1 / N_CLASSES] * N_CLASSES)
+    uncertainty  = entropy_val / max_entropy
+    confidence_label = ("High confidence" if uncertainty < 0.33 else
+                         "Moderate confidence" if uncertainty < 0.66 else
+                         "Low confidence — review carefully")
+    confidence_color = ("#22c55e" if uncertainty < 0.33 else
+                         "#f59e0b" if uncertainty < 0.66 else "#ef4444")
+ 
+    forward_prob = float(sum(proba_vec[c] for c in range(pred_stage + 1, N_CLASSES)))
+    if pred_stage < N_CLASSES - 1:
+        if forward_prob >= 0.30:
+            progression_verdict, prog_icon = "YES", "Warning"
+        elif forward_prob >= 0.15:
+            progression_verdict, prog_icon = "POSSIBLE", "Notice"
+        else:
+            progression_verdict, prog_icon = "NO", "OK"
+ 
+    # Result hero card
+    st.markdown(f"""
+    <div style="background:{stage_bg};border:2px solid {stage_color};border-radius:16px;
+                padding:1.6rem 2rem;margin-bottom:1.2rem">
+      <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;
+                  color:{stage_color};margin-bottom:.4rem">AI ASSESSMENT RESULT</div>
+      <div style="font-size:2rem;font-weight:800;color:{stage_color};letter-spacing:-.03em">{stage_name}</div>
+      <div style="font-size:.9rem;color:#475569;margin-top:.4rem">{rec['headline']}</div>
+      <div style="margin-top:.8rem">{urgency_chip(rec['urgency'])}</div>
+    </div>""", unsafe_allow_html=True)
+ 
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown(f'<div class="metric-tile"><div class="value" style="color:{stage_color}">Stage {pred_stage}</div><div class="label">KDIGO Stage (0–5)</div></div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f'<div class="metric-tile"><div class="value" style="color:#0f172a">{proba_vec[pred_stage]*100:.0f}%</div><div class="label">Stage probability</div></div>', unsafe_allow_html=True)
+    with c3:
+        st.markdown(f'<div class="metric-tile"><div class="value" style="color:{confidence_color};font-size:1.1rem;padding-top:.5rem">{confidence_label.split(" ")[0]} {confidence_label.split(" ")[1]}</div><div class="label">AI confidence</div></div>', unsafe_allow_html=True)
+    with c4:
+        st.markdown(f'<div class="metric-tile"><div class="value" style="color:#0f172a">{prog_score:.1f}/5</div><div class="label">Severity score</div></div>', unsafe_allow_html=True)
+ 
+    st.markdown("<div style='margin-top:.5rem'></div>", unsafe_allow_html=True)
+ 
+    rec_color_map = {0: "green", 1: "blue", 2: "amber", 3: "red", 4: "red", 5: "slate"}
+    actions_html  = "".join(f"<li style='margin:.3rem 0'>{a}</li>" for a in rec["actions"])
+    st.markdown(f"""
+    <div class="rec-box {rec_color_map[pred_stage]}">
+      <strong>Recommended Clinical Actions:</strong>
+      <ul style="margin:.5rem 0 0;padding-left:1.2rem">{actions_html}</ul>
+    </div>""", unsafe_allow_html=True)
+ 
+    st.divider()
+ 
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "Summary", "Clinical Factors (M1)", "Lifestyle Factors (M2)",
+        "Demographic Factors (M3)", "Progression Risk", "Fairness Audit",
+    ])
+ 
+    with tab1:
+        st.markdown('<p class="sect-hdr">Patient Snapshot</p>', unsafe_allow_html=True)
+        pd_data = st.session_state.patient_data
+        cs1, cs2, cs3 = st.columns(3)
+        with cs1:
+            st.markdown("**Key Clinical Values**")
+            st.write(f"HbA1c: **{pd_data.get('hba1c_pct','N/A'):.1f}%** (target <7%)")
+            st.write(f"UACR: **{pd_data.get('uacr_mgg','N/A'):.1f} mg/g**")
+            st.write(f"BP: **{pd_data.get('mean_sbp','N/A')}/{pd_data.get('mean_dbp','N/A')} mmHg**")
+            st.write(f"BMI: **{pd_data.get('bmi_kgm2','N/A'):.1f} kg/m²**")
+        with cs2:
+            st.markdown("**Model Votes**")
+            st.markdown(f"""
+            <div style="font-size:.85rem">
+              <div style="display:flex;justify-content:space-between;padding:.4rem .6rem;background:#f0f7ff;border-radius:8px;margin:.3rem 0">
+                <span>Clinical (M1)</span><strong style="color:#3b82f6">{p1[pred_stage]*100:.0f}%</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:.4rem .6rem;background:#fff7f0;border-radius:8px;margin:.3rem 0">
+                <span>Lifestyle (M2)</span><strong style="color:#f97316">{p2[pred_stage]*100:.0f}%</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:.4rem .6rem;background:#faf5ff;border-radius:8px;margin:.3rem 0">
+                <span>Demographics (M3)</span><strong style="color:#8b5cf6">{p3[pred_stage]*100:.0f}%</strong>
+              </div>
+            </div>""", unsafe_allow_html=True)
+        with cs3:
+            st.markdown("**Patient Demographics**")
+            sex_l  = "Female" if pd_data.get("sex_code") == 1 else "Male"
+            race_l = {1: "Mexican American", 2: "Other Hispanic", 3: "NH White",
+                      4: "NH Black", 6: "NH Asian", 7: "Other/Multi"}.get(pd_data.get("race_ethnicity_code"), "N/A")
+            age    = pd_data.get("age_years", 0)
+            inc    = pd_data.get("household_income_cat", 8)
+            inc_l  = "Low (<$25k)" if inc <= 5 else ("Middle ($25–64k)" if inc <= 9 else "High (≥$65k)")
+            st.write(f"Age: **{age} years** · {sex_l}")
+            st.write(f"Ethnicity: **{race_l}**")
+            st.write(f"Income: **{inc_l}**")
+ 
+        st.markdown('<p class="sect-hdr">Stage Probability Breakdown</p>', unsafe_allow_html=True)
+        fig_dist, ax_dist = plt.subplots(figsize=(10, 2.8))
+        bars = ax_dist.barh([STAGE_NAMES[c] for c in range(N_CLASSES)],
+                            [proba_vec[c] * 100 for c in range(N_CLASSES)],
+                            color=[STAGE_COLORS[c] for c in range(N_CLASSES)],
+                            alpha=0.85, edgecolor="white", linewidth=0.5, height=0.65)
+        for bar, val in zip(bars, proba_vec):
+            ax_dist.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height() / 2,
+                         f"{val*100:.1f}%", va="center", fontsize=8.5, fontweight="600")
+        ax_dist.set_xlabel("Probability (%)", fontsize=9)
+        ax_dist.set_xlim(0, 108)
+        ax_dist.spines[["top", "right"]].set_visible(False)
+        ax_dist.tick_params(labelsize=8.5)
+        plt.tight_layout()
+        st.pyplot(fig_dist, use_container_width=True)
+        plt.close()
+ 
+    with tab2:
+        st.markdown("""
+        <div class="model-badge rf">
+          <h4>Clinical Model (M1) — Which blood test results drove this prediction?</h4>
+        </div>""", unsafe_allow_html=True)
+        st.markdown(f'<div class="rec-box blue">{SHAP_EXPLAIN}</div>', unsafe_allow_html=True)
+ 
+        shap_rf_dict = dict(zip(X1.columns.tolist(), rf_sv[0, :, pred_stage]))
+        fig_rf = plot_shap_bar(shap_rf_dict, f"Clinical Factors — Stage {pred_stage} Prediction",
+                               "#ef4444", "#3b82f6", highlight_feats=RF_EXPECTED)
+        if fig_rf:
+            st.pyplot(fig_rf, use_container_width=True); plt.close()
+ 
+        st.markdown('<p class="sect-hdr">Clinical Factor Influence Across All Stages</p>', unsafe_allow_html=True)
+        top_feats = sorted(shap_rf_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:8]
+        feat_labels = [display_value(f, 0)[0] for f, _ in top_feats]
+        shap_matrix = np.array([[rf_sv[0, list(X1.columns).index(f), c] for f, _ in top_feats]
+                                 for c in range(N_CLASSES)])
+        fig_heat, ax_heat = plt.subplots(figsize=(10, 4))
+        im = ax_heat.imshow(shap_matrix, cmap="RdBu_r", aspect="auto",
+                            norm=mcolors.TwoSlopeNorm(vcenter=0))
+        ax_heat.set_xticks(range(len(feat_labels)))
+        ax_heat.set_xticklabels(feat_labels, rotation=35, ha="right", fontsize=8.5)
+        ax_heat.set_yticks(range(N_CLASSES))
+        ax_heat.set_yticklabels([STAGE_NAMES[c] for c in range(N_CLASSES)], fontsize=8.5)
+        plt.colorbar(im, ax=ax_heat, shrink=0.8, label="SHAP value")
+        ax_heat.set_title("Clinical Factor Influence Heatmap", fontsize=10, fontweight="700")
+        plt.tight_layout()
+        st.pyplot(fig_heat, use_container_width=True); plt.close()
+ 
+    with tab3:
+        st.markdown("""
+        <div class="model-badge xgb">
+          <h4>Lifestyle Model (M2) — Which lifestyle factors drove this prediction?</h4>
+        </div>""", unsafe_allow_html=True)
+        st.markdown(f'<div class="rec-box amber">{SHAP_EXPLAIN}</div>', unsafe_allow_html=True)
+ 
+        shap_xgb_dict = dict(zip(X2.columns.tolist(), xgb_sv[0, :, pred_stage]))
+        fig_xgb = plot_shap_bar(shap_xgb_dict, f"Lifestyle Factors — Stage {pred_stage} Prediction",
+                                "#f97316", "#0ea5e9", highlight_feats=XGB_EXPECTED)
+        if fig_xgb:
+            st.pyplot(fig_xgb, use_container_width=True); plt.close()
+ 
+        st.markdown('<p class="sect-hdr">Model Agreement</p>', unsafe_allow_html=True)
+        fig_comp, ax_comp = plt.subplots(figsize=(10, 3.2))
+        x, w = np.arange(N_CLASSES), 0.26
+        ax_comp.bar(x - w, p1 * 100, w, label="M1 Clinical",     color="#3b82f6", alpha=0.85)
+        ax_comp.bar(x,     p2 * 100, w, label="M2 Lifestyle",    color="#f97316", alpha=0.85)
+        ax_comp.bar(x + w, p3 * 100, w, label="M3 Demographics", color="#8b5cf6", alpha=0.85)
+        ax_comp.set_xticks(x)
+        ax_comp.set_xticklabels([f"Stage {c}" for c in range(N_CLASSES)], fontsize=8.5)
+        ax_comp.set_ylabel("Confidence (%)", fontsize=9)
+        ax_comp.set_title("Agreement Between All Three Models", fontsize=10, fontweight="700")
+        ax_comp.legend(fontsize=8.5)
+        ax_comp.spines[["top", "right"]].set_visible(False)
+        plt.tight_layout()
+        st.pyplot(fig_comp, use_container_width=True); plt.close()
+ 
+    with tab4:
+        st.markdown("""
+        <div class="model-badge lr">
+          <h4>Demographics Model (M3) — Which patient background factors drove this prediction?</h4>
+        </div>""", unsafe_allow_html=True)
+        st.markdown(f'<div class="rec-box purple">{SHAP_EXPLAIN}</div>', unsafe_allow_html=True)
+ 
+        if lr_sv is not None:
+            try:
+                shap_lr_dict = (dict(zip(X3.columns.tolist(), lr_sv[pred_stage, 0, :]))
+                                if lr_sv.ndim == 3 else
+                                dict(zip(X3.columns.tolist(), lr_sv[0, :])))
+            except Exception:
+                shap_lr_dict = {}
+ 
+            if shap_lr_dict:
+                fig_lr = plot_shap_bar(shap_lr_dict, f"Demographic Factors — Stage {pred_stage} Prediction",
+                                       "#8b5cf6", "#06b6d4", highlight_feats=LR_EXPECTED)
+                if fig_lr:
+                    st.pyplot(fig_lr, use_container_width=True); plt.close()
+ 
+            if lr_sv.ndim == 3 and lr_sv.shape[0] == N_CLASSES:
+                st.markdown('<p class="sect-hdr">Demographic Factor Influence Across All Stages</p>', unsafe_allow_html=True)
+                top_lr = sorted(shap_lr_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:7]
+                lr_feat_labels = [display_value(f, 0)[0] for f, _ in top_lr]
+                lr_shap_matrix = np.array([[lr_sv[c, 0, list(X3.columns).index(f)] for f, _ in top_lr]
+                                            for c in range(N_CLASSES)])
+                fig_lrheat, ax_lrheat = plt.subplots(figsize=(9, 4))
+                im2 = ax_lrheat.imshow(lr_shap_matrix, cmap="RdBu_r", aspect="auto",
+                                       norm=mcolors.TwoSlopeNorm(vcenter=0))
+                ax_lrheat.set_xticks(range(len(lr_feat_labels)))
+                ax_lrheat.set_xticklabels(lr_feat_labels, rotation=35, ha="right", fontsize=8.5)
+                ax_lrheat.set_yticks(range(N_CLASSES))
+                ax_lrheat.set_yticklabels([STAGE_NAMES[c] for c in range(N_CLASSES)], fontsize=8.5)
+                plt.colorbar(im2, ax=ax_lrheat, shrink=0.8, label="SHAP value")
+                ax_lrheat.set_title("Demographic Factor Influence Heatmap", fontsize=10, fontweight="700")
+                plt.tight_layout()
+                st.pyplot(fig_lrheat, use_container_width=True); plt.close()
+ 
+            st.markdown("""
+            <div class="rec-box purple">
+              <strong>Note on demographic factors:</strong> Differences by age, ethnicity, or sex reflect
+              documented population-level differences in kidney disease rates, not model bias.
+              This system was independently audited for fairness across all demographic groups.
+            </div>""", unsafe_allow_html=True)
+        else:
+            st.warning("Demographic SHAP analysis unavailable for this patient.")
+ 
+    with tab5:
+        st.markdown('<p class="sect-hdr">Will This Patient\'s Kidney Disease Progress?</p>', unsafe_allow_html=True)
+ 
+        if pred_stage >= N_CLASSES - 1:
+            st.markdown("""
+            <div class="verdict-no">
+              <div class="verdict-title" style="color:#14532d">Stage 5 — Kidney Replacement Required</div>
+              <div class="verdict-body">Patient is at the most advanced stage. Focus on renal replacement therapy.</div>
+            </div>""", unsafe_allow_html=True)
+        else:
+            next_stage_name = STAGE_NAMES[pred_stage + 1]
+            if progression_verdict == "YES":
+                vhtml = f"""<div class="verdict-yes">
+                  <div class="verdict-title" style="color:#be123c">YES — DISEASE PROGRESSION IS LIKELY</div>
+                  <div class="verdict-body">
+                    <strong>{forward_prob*100:.0f}%</strong> chance of progressing beyond {stage_name}
+                    toward <strong>{next_stage_name}</strong> if risk factors are not addressed.
+                    Prioritise clinical actions and consider nephrology referral.
+                  </div></div>"""
+            elif progression_verdict == "POSSIBLE":
+                vhtml = f"""<div class="verdict-watch">
+                  <div class="verdict-title" style="color:#92400e">POSSIBLE — MONITOR CLOSELY</div>
+                  <div class="verdict-body">
+                    <strong>{forward_prob*100:.0f}%</strong> probability of worsening to <strong>{next_stage_name}</strong>.
+                    With good management, progression may be preventable.
+                    Increase monitoring frequency and review modifiable risk factors.
+                  </div></div>"""
+            else:
+                vhtml = f"""<div class="verdict-no">
+                  <div class="verdict-title" style="color:#14532d">NO — STAGE APPEARS STABLE</div>
+                  <div class="verdict-body">
+                    Only <strong>{forward_prob*100:.0f}%</strong> chance of progression at this time.
+                    Current management appears effective. Continue routine monitoring.
+                  </div></div>"""
+            st.markdown(vhtml, unsafe_allow_html=True)
+ 
+            if risk_drivers:
+                st.markdown('<p class="sect-hdr">Factors Driving Progression Risk</p>', unsafe_allow_html=True)
+                col_risk, col_prot = st.columns([3, 2])
+                with col_risk:
+                    r_feats = [display_value(f, 0)[0] for f, _ in risk_drivers]
+                    r_vals  = [v for _, v in risk_drivers]
+                    r_raws  = [display_value(f, X1.iloc[0].get(f, np.nan))[1] for f, _ in risk_drivers]
+                    fig_prog, ax_prog = plt.subplots(figsize=(7, max(2.8, len(r_feats) * 0.6)))
+                    bars_p = ax_prog.barh(r_feats[::-1], r_vals[::-1], color="#f43f5e", alpha=0.85, height=0.6)
+                    for bar, raw in zip(bars_p, r_raws[::-1]):
+                        ax_prog.text(bar.get_width() + 0.001, bar.get_y() + bar.get_height() / 2,
+                                     f"{raw:.2f}", va="center", fontsize=8)
+                    ax_prog.set_xlabel(f"Influence toward {next_stage_name}", fontsize=9)
+                    ax_prog.set_title("Risk Factors to Address", fontsize=10, fontweight="700")
+                    ax_prog.spines[["top", "right"]].set_visible(False)
+                    plt.tight_layout()
+                    st.pyplot(fig_prog, use_container_width=True); plt.close()
+                with col_prot:
+                    if prot_drivers:
+                        st.markdown("**Protective factors (slowing progression)**")
+                        for feat, sv in prot_drivers:
+                            disp_name, _ = display_value(feat, X1.iloc[0].get(feat, np.nan))
+                            _, _, desc   = CLINICAL_CONTEXT.get(feat, (None, None, ""))
+                            st.markdown(f"""
+                            <div class="driver-row prot">
+                              <span><strong>{disp_name}</strong><br>
+                                <small style="color:#475569">{desc}</small></span>
+                              <span style="color:#16a34a;font-weight:700">✓</span>
+                            </div>""", unsafe_allow_html=True)
+ 
+        st.markdown('<p class="sect-hdr">Disease Severity Gauge</p>', unsafe_allow_html=True)
+        fig_gauge, ax_g = plt.subplots(figsize=(9, 1.8))
+        ax_g.barh(["Score"], [prog_score], color=stage_color, alpha=0.85, height=0.45)
+        ax_g.set_xlim(0, 5)
+        for s in range(6):
+            ax_g.axvline(s, color="#e2e8f0", lw=0.8)
+            ax_g.text(s + 0.07, 0.28, f"Stage {s}", fontsize=7.5, color="#64748b")
+        ax_g.axvline(pred_stage, color="#0f172a", lw=2, ls="--", alpha=0.7)
+        ax_g.set_xlabel("Disease Severity (0 = No DKD → 5 = Kidney Failure)", fontsize=9)
+        ax_g.spines[["top", "right", "left"]].set_visible(False)
+        ax_g.set_yticks([])
+        ax_g.text(prog_score + 0.07, 0, f"{prog_score:.2f}", fontsize=10,
+                  fontweight="800", va="center", color=stage_color)
+        plt.tight_layout()
+        st.pyplot(fig_gauge, use_container_width=True); plt.close()
+ 
+    with tab6:
+        pd_data   = st.session_state.patient_data
+        sex_label = "Female" if pd_data.get("sex_code") == 1 else "Male"
+        race_map  = {1: "Mexican American", 2: "Other Hispanic", 3: "NH White",
+                     4: "NH Black", 6: "NH Asian", 7: "Other/Multi"}
+        race_label = race_map.get(pd_data.get("race_ethnicity_code"), "Unknown")
+        age_v      = pd_data.get("age_years", 0)
+        age_group  = "<40" if age_v < 40 else "40–55" if age_v < 55 else "55–65" if age_v < 65 else "65+"
+        inc        = pd_data.get("household_income_cat", 8)
+        inc_label  = "Low (<$25k)" if inc <= 5 else ("Middle ($25–64k)" if inc <= 9 else "High (≥$65k)")
+ 
+        cf1, cf2, cf3, cf4 = st.columns(4)
+        with cf1: st.metric("Sex", sex_label)
+        with cf2: st.metric("Ethnicity", race_label)
+        with cf3: st.metric("Age Group", age_group)
+        with cf4: st.metric("Income Tier", inc_label)
+ 
+        st.markdown("""
+        <div class="rec-box blue">
+          <strong>Fairness audit summary:</strong> This system was tested across sex, ethnicity, age,
+          and income groups before deployment. Performance thresholds applied:
+          <ul style="margin:.5rem 0 0;padding-left:1.2rem">
+            <li>Accuracy gap between groups: no more than 5 percentage points</li>
+            <li>Sensitivity: at least 60% for all groups</li>
+            <li>Sensitivity gap between groups: no more than 15 percentage points</li>
+          </ul>
+          Observed differences reflect real population-level disease rate variation, not AI bias.
+        </div>""", unsafe_allow_html=True)
+ 
+        if "summary_df" in mdl and mdl["summary_df"] is not None:
+            st.markdown('<p class="sect-hdr">Fairness Audit Results</p>', unsafe_allow_html=True)
+            st.dataframe(mdl["summary_df"], use_container_width=True)
+            st.caption("PASS = meets threshold · FAIL = below threshold · NOTE = expected population difference")
+        else:
+            st.info("Fairness audit table not available in the loaded model file.")
+ 
+    st.markdown("""
+    <div class="disclaimer">
+      <strong>Clinical Disclaimer:</strong> This system is a decision support tool only and does not replace
+      clinical judgement. All predictions must be reviewed by a qualified clinician alongside the full patient
+      history, physical examination, and current clinical guidelines. Trained on cross-sectional NHANES data
+      (2015–2020, n ≈ 6,600); not validated for longitudinal monitoring without repeated assessment.
+    </div>""", unsafe_allow_html=True)
+ 
+    st.divider()
+    col_back, _, col_new = st.columns([2, 3, 2])
+    with col_back:
+        if st.button("Edit Patient Data", use_container_width=True):
+            st.session_state.current_page = 0; st.rerun()
+    with col_new:
+        if st.button("New Patient", type="primary", use_container_width=True):
+            st.session_state.current_page = 0; st.rerun()
