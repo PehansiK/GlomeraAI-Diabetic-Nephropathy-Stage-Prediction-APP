@@ -1033,3 +1033,162 @@ def _render_results(
       All AI outputs are for illustrative use and must not be used for clinical decision-making.
       The full system was trained on NHANES 2015–2020 cross-sectional data (n ≈ 6,600).
     </div>""", unsafe_allow_html=True)
+
+# ══════════════════════════════════════════════════════════════════════════════
+# MAIN ENTRY POINT
+# ══════════════════════════════════════════════════════════════════════════════
+def show_demo_page(
+    mdl, CLINICAL_CONTEXT, STAGE_NAMES, STAGE_COLORS, STAGE_BG,
+    STAGE_RECOMMENDATIONS, N_CLASSES,
+    build_patient_vector, run_ensemble,
+    compute_shap_patient, progression_risk_profile,
+):
+    """Render the full Demo page with per-tab multi-step forms."""
+ 
+    DEMO_PROFILES = _build_profiles()
+ 
+    # ── Banner ─────────────────────────────────────────────────────────────────
+    st.markdown("""
+    <div style="background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 55%,#0f172a 100%);
+                border-radius:18px;padding:1.8rem 2.5rem;margin-bottom:1.4rem;position:relative;
+                overflow:hidden">
+      <div style="position:absolute;top:0;left:0;right:0;bottom:0;background:
+        radial-gradient(ellipse at 20% 60%,rgba(14,165,233,.18) 0%,transparent 55%),
+        radial-gradient(ellipse at 80% 20%,rgba(99,102,241,.14) 0%,transparent 50%);
+        pointer-events:none"></div>
+      <div style="position:relative">
+        <div style="color:#f8fafc;font-size:1.6rem;font-weight:800;letter-spacing:-.03em;
+                    margin-bottom:.35rem">🔬 GlomeraAI — Demo Mode · Pre-loaded Patient Cases</div>
+        <div style="color:#94a3b8;font-size:.8rem;font-family:'JetBrains Mono',monospace">
+          6 clinically validated synthetic profiles &nbsp;·&nbsp; KDIGO Stages 0–5 &nbsp;·&nbsp;
+          Full 3-step form pre-filled · Complete AI analysis on Results tab
+        </div>
+      </div>
+    </div>""", unsafe_allow_html=True)
+ 
+    st.markdown("""
+    <div class="rec-box blue" style="margin-bottom:1.2rem">
+      <strong>ℹ️ How to use Demo Mode:</strong>
+      Select a stage tab below. The full Clinical → Lifestyle → Demographics forms are
+      pre-filled with a clinically calibrated patient profile for that stage.
+      Review or adjust any values, then click <strong>Continue</strong> through each step.
+      On the final step, click <strong>Run AI Assessment</strong> to see the complete results.
+      You can re-run any stage independently — results are cached per tab.
+    </div>""", unsafe_allow_html=True)
+ 
+    # ── Stage Tabs ─────────────────────────────────────────────────────────────
+    tab_labels = [
+        f"{DEMO_PROFILES[s]['icon']} Stage {s}" for s in range(6)
+    ]
+    tabs = st.tabs(tab_labels)
+ 
+    for s, tab in enumerate(tabs):
+        p = DEMO_PROFILES[s]
+        step_key = f"demo_step_{s}"
+        data_key = f"demo_data_{s}"
+ 
+        # Initialise step counter
+        if step_key not in st.session_state:
+            st.session_state[step_key] = 0
+        if data_key not in st.session_state:
+            st.session_state[data_key] = {}
+ 
+        with tab:
+            # Profile header card
+            st.markdown(f"""
+            <div style="background:{p['bg']};border:2px solid {p['color']};border-radius:14px;
+                        padding:1.1rem 1.6rem;margin-bottom:1rem;display:flex;
+                        align-items:center;gap:1.1rem">
+              <div style="font-size:2.4rem;line-height:1">{p['icon']}</div>
+              <div>
+                <div style="font-size:1.15rem;font-weight:800;color:{p['color']};
+                            letter-spacing:-.02em">{p['label']}</div>
+                <div style="font-size:.82rem;color:#64748b;margin-top:.2rem">{p['subtitle']}</div>
+              </div>
+            </div>""", unsafe_allow_html=True)
+ 
+            # Clinical notes (collapsed expander so they don't crowd the form)
+            with st.expander("📋 View clinical profile notes for this demo case", expanded=False):
+                for note in p["clinical_notes"]:
+                    st.markdown(f"""
+                    <div style="display:flex;gap:.55rem;align-items:flex-start;
+                                padding:.38rem .65rem;border-radius:8px;margin-bottom:.28rem;
+                                background:rgba(248,250,252,.9);font-size:.83rem;color:#334155;
+                                border-left:3px solid {p['color']}">
+                      <span style="font-weight:800;color:{p['color']};flex-shrink:0">▸</span>
+                      {note}
+                    </div>""", unsafe_allow_html=True)
+ 
+            current_step = st.session_state[step_key]
+ 
+            # ── Stepper ───────────────────────────────────────────────────────
+            st.markdown(_stepper_html(current_step), unsafe_allow_html=True)
+ 
+            # ── Step 0: Clinical Form ─────────────────────────────────────────
+            if current_step == 0:
+                clinical_data = _render_clinical_form(s, p)
+                st.markdown("<div style='height:.3rem'></div>", unsafe_allow_html=True)
+                _, col_btn, _ = st.columns([2, 3, 2])
+                with col_btn:
+                    if st.button("Continue to Lifestyle →", type="primary",
+                                 use_container_width=True, key=f"d{s}_next0"):
+                        st.session_state[data_key].update(clinical_data)
+                        st.session_state[step_key] = 1
+                        st.rerun()
+ 
+            # ── Step 1: Lifestyle Form ────────────────────────────────────────
+            elif current_step == 1:
+                lifestyle_data = _render_lifestyle_form(s, p)
+                st.markdown("<div style='height:.3rem'></div>", unsafe_allow_html=True)
+                col_l, _, col_r = st.columns([2, 2, 2])
+                with col_l:
+                    if st.button("← Back", use_container_width=True, key=f"d{s}_back1"):
+                        st.session_state[step_key] = 0; st.rerun()
+                with col_r:
+                    if st.button("Continue to Demographics →", type="primary",
+                                 use_container_width=True, key=f"d{s}_next1"):
+                        st.session_state[data_key].update(lifestyle_data)
+                        st.session_state[step_key] = 2
+                        st.rerun()
+ 
+            # ── Step 2: Demographics Form ─────────────────────────────────────
+            elif current_step == 2:
+                demo_data = _render_demographics_form(s, p)
+                st.markdown("<div style='height:.3rem'></div>", unsafe_allow_html=True)
+                col_l, _, col_r = st.columns([2, 2, 2])
+                with col_l:
+                    if st.button("← Back", use_container_width=True, key=f"d{s}_back2"):
+                        st.session_state[step_key] = 1; st.rerun()
+                with col_r:
+                    if st.button("🔍 Run AI Assessment →", type="primary",
+                                 use_container_width=True, key=f"d{s}_next2"):
+                        st.session_state[data_key].update(demo_data)
+                        # Clear any old result so it re-runs with the current form values
+                        if f"demo_res_{s}" in st.session_state:
+                            del st.session_state[f"demo_res_{s}"]
+                        st.session_state[step_key] = 3
+                        st.rerun()
+ 
+            # ── Step 3: Results ───────────────────────────────────────────────
+            elif current_step == 3:
+                _render_results(
+                    s,
+                    st.session_state[data_key],
+                    mdl,
+                    CLINICAL_CONTEXT, STAGE_NAMES, STAGE_COLORS, STAGE_BG,
+                    STAGE_RECOMMENDATIONS, N_CLASSES,
+                    build_patient_vector, run_ensemble,
+                    compute_shap_patient, progression_risk_profile,
+                )
+                st.divider()
+                col_back, _, col_reset = st.columns([2, 3, 2])
+                with col_back:
+                    if st.button("← Edit Patient Data", use_container_width=True, key=f"d{s}_back3"):
+                        st.session_state[step_key] = 0; st.rerun()
+                with col_reset:
+                    if st.button("🔄 Reset This Case", use_container_width=True, key=f"d{s}_reset"):
+                        st.session_state[step_key] = 0
+                        st.session_state[data_key] = {}
+                        if f"demo_res_{s}" in st.session_state:
+                            del st.session_state[f"demo_res_{s}"]
+                        st.rerun()
