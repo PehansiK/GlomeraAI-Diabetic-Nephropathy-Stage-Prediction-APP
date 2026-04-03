@@ -424,3 +424,112 @@ def load_model_from_hf():
         return pickle.load(io.BytesIO(resp.content)), None
     except Exception as exc:
         return None, f"Could not load model: {exc}"
+
+# ── Core helpers ───────────────────────────────────────────────────────────────
+def display_value(feat, raw_val):
+    if feat in CLINICAL_CONTEXT:
+        name, transform, _ = CLINICAL_CONTEXT[feat]
+        if transform == "expm1":
+            return name, float(np.expm1(raw_val))
+        return name, raw_val
+    return feat.replace("_", " ").title(), raw_val
+ 
+ 
+def build_patient_vector(inputs, mdl):
+    ALL_FEATS   = mdl["ALL_FEATS"]
+    M1, M2, M3  = mdl["M1"], mdl["M2"], mdl["M3"]
+    knn_imputer = mdl["knn_imputer"]
+    row    = {f: np.nan for f in ALL_FEATS}
+    row.update({k: v for k, v in inputs.items() if k in row})
+    df_row = pd.DataFrame([row])[ALL_FEATS]
+    df_imp = pd.DataFrame(knn_imputer.transform(df_row), columns=ALL_FEATS)
+    X1 = df_imp[[c for c in M1 if c in df_imp.columns]]
+    X2 = df_imp[[c for c in M2 if c in df_imp.columns]]
+    X3 = df_imp[[c for c in M3 if c in df_imp.columns]]
+    return df_imp, X1, X2, X3
+ 
+ 
+def run_ensemble(mdl, X1, X2, X3):
+    X3_sc     = mdl["lr_scaler"].transform(X3)
+    p1        = mdl["rf_pipeline"].predict_proba(X1)
+    p2        = mdl["xgb_pipeline"].predict_proba(X2)
+    p3        = mdl["lr_model"].predict_proba(X3_sc)
+    meta_feat = np.hstack([p1, p2, p3])
+    meta_sc   = mdl["meta_scaler"].transform(meta_feat)
+    pred      = mdl["meta_lr"].predict(meta_sc)[0]
+    proba     = mdl["meta_lr"].predict_proba(meta_sc)[0]
+    return int(pred), proba, p1[0], p2[0], p3[0]
+ 
+ 
+def compute_shap_patient(mdl, X1, X2, X3):
+    rf_exp  = shap.TreeExplainer(mdl["rf_clf"])
+    xgb_exp = shap.TreeExplainer(mdl["xgb_clf"])
+    rf_sv   = np.array(rf_exp.shap_values(X1))
+    xgb_sv  = np.array(xgb_exp.shap_values(X2))
+    try:
+        X3_sc = mdl["lr_scaler"].transform(X3)
+        coef  = mdl["lr_model"].coef_
+        lr_sv = coef[:, np.newaxis, :] * np.array(X3_sc)[np.newaxis, :, :]
+    except Exception:
+        lr_sv = None
+    return rf_sv, xgb_sv, lr_sv
+ 
+ 
+def progression_risk_profile(rf_sv, X1, pred_class):
+    if pred_class >= N_CLASSES - 1:
+        return None, None
+    shap_next = rf_sv[0, :, pred_class + 1] if rf_sv.ndim == 3 else rf_sv[:, :, pred_class + 1][0]
+    feat_shap = dict(zip(X1.columns.tolist(), shap_next))
+    risk = sorted([(f, v) for f, v in feat_shap.items() if v > 0 and f in CLINICAL_CONTEXT],
+                  key=lambda x: x[1], reverse=True)[:5]
+    prot = sorted([(f, v) for f, v in feat_shap.items() if v < 0 and f in CLINICAL_CONTEXT],
+                  key=lambda x: x[1])[:3]
+    return risk, prot
+ 
+ 
+def plot_shap_bar(shap_dict, title, color_pos="#ef4444", color_neg="#3b82f6",
+                  top_n=10, highlight_feats=None):
+    items = sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:top_n]
+    if not items:
+        return None
+    labels = [display_value(f, 0)[0] for f, _ in items]
+    vals   = [sv for _, sv in items]
+    colors = []
+    for feat, sv in items:
+        if sv > 0:
+            colors.append("#f97316" if (highlight_feats and feat in highlight_feats) else color_pos)
+        else:
+            colors.append("#0ea5e9" if (highlight_feats and feat in highlight_feats) else color_neg)
+    fig, ax = plt.subplots(figsize=(8, max(3.5, len(labels) * 0.48)))
+    ax.barh(labels[::-1], vals[::-1], color=colors[::-1], alpha=0.88, height=0.62)
+    ax.axvline(0, color="#374151", lw=0.9, ls="--")
+    ax.set_xlabel("Influence on prediction (SHAP value)", fontsize=9)
+    ax.set_title(title, fontsize=10, fontweight="700")
+    ax.spines[["top", "right"]].set_visible(False)
+    ax.tick_params(labelsize=8.5)
+    plt.tight_layout()
+    return fig
+ 
+ 
+def stepper_html(current):
+    steps = ["Clinical Data", "Lifestyle", "Demographics", "Results"]
+    parts = []
+    for i, label in enumerate(steps):
+        cls      = "done" if i < current else ("active" if i == current else "todo")
+        num      = "✓"   if i < current else str(i + 1)
+        line_cls = "done" if i < current else ""
+        dot      = f'<div class="step-dot {cls}">{num}</div>'
+        lbl      = f'<div class="step-label">{label}</div>'
+        inner    = f'<div style="display:flex;flex-direction:column;align-items:center">{dot}{lbl}</div>'
+        conn     = f'<div class="step-line {line_cls}"></div>' if i < len(steps) - 1 else ""
+        parts.append(f'<div class="step-item">{inner}{conn}</div>')
+    return '<div class="stepper">' + "".join(parts) + "</div>"
+ 
+ 
+def urgency_chip(text):
+    color_map = {
+        "Routine": "green", "Within 4": "blue", "Within 2": "amber",
+        "Urgent": "red", "Immediate": "red", "Emergency": "red",
+    }
+    chip_color = next((v for k, v in color_map.items() if text.startswith(k)), "blue")
+    return f'<span class="chip {chip_color}">{text}</span>'
