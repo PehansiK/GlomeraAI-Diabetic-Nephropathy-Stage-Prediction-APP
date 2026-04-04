@@ -5,7 +5,13 @@ A multimodel, explainable, and fairness-audited AI system for predicting Diabeti
 Built with a stacked ensemble of three sub-models (Random Forest · XGBoost · Logistic Regression) trained on NHANES 2015–2020 cross-sectional data.
 
 ---
+## Model Development & Streamlit App
 
+>**Model Repo:** [Diabetic-Nephropathy-Stage-Prediction](https://github.com/PehansiK/Diabetic-Nephropathy-Stage-Prediction)
+
+>**Streamlit App:** [🔬GlomeraAI](https://glomera-ai.streamlit.app/)
+
+---
 ## Features
 
 - **Six-class KDIGO staging** — predicts DKD stage 0 (No DKD) through stage 5 (Kidney Failure)
