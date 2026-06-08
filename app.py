@@ -52,7 +52,9 @@ div[data-testid="stSidebarContent"] {
     background: var(--navy2) !important;
     border-right: 1px solid var(--border);
 }
-div[data-testid="stSidebarContent"] * { color: var(--slate) !important; }
+div[data-testid="stSidebarContent"] * { color: #8496b0 !important; }
+div[data-testid="stSidebarContent"] strong { color: #f0f4ff !important; }
+div[data-testid="stSidebarContent"] span[style*="color"] { color: inherit !important; }
 div[data-testid="stSidebarContent"] h3 { color: var(--white) !important; font-family: 'Playfair Display', serif; }
 
 div[data-testid="stSidebarContent"] .stButton > button {
@@ -220,6 +222,22 @@ div[data-testid="stSidebarContent"] .nav-active .stButton > button {
 .chip.purple { background: rgba(168,85,247,.15);  color: #c084fc; border: 1px solid rgba(168,85,247,.3); }
 
 /* ── Tabs ── */
+/* Metrics */
+div[data-testid="stMetric"] label { color: #8496b0 !important; }
+div[data-testid="stMetricValue"] { color: #f0f4ff !important; }
+div[data-testid="stMetricDelta"] { color: #10b981 !important; }
+
+/* Dataframe */
+div[data-testid="stDataFrame"] { background: rgba(255,255,255,.03) !important; border-radius: 10px; }
+
+/* Spinner */
+div[data-testid="stSpinner"] p { color: #8496b0 !important; }
+
+/* Selectbox options */
+div[data-testid="stSelectbox"] div[data-baseweb="select"] div {
+    color: #f0f4ff !important; background: #111d35 !important;
+}
+
 .stTabs [data-baseweb="tab-list"] {
     gap: 4px; background: rgba(255,255,255,.04);
     border-radius: 10px; padding: 4px;
@@ -234,7 +252,7 @@ div[data-testid="stSidebarContent"] .nav-active .stButton > button {
 }
 
 /* ── Input labels ── */
-label { color: var(--slate) !important; font-size: .82rem !important; }
+label { color: #a0b4cc !important; font-size: .82rem !important; font-weight: 500 !important; }
 .stNumberInput input, .stSelectbox > div > div {
     background: rgba(255,255,255,.05) !important;
     border: 1px solid var(--border) !important;
@@ -304,7 +322,7 @@ N_CLASSES = 6
 STAGE_NAMES = {
     0: "No DKD",
     1: "Stage 1 — Microalbuminuria",
-    2: "Stage 2 — Mild GFR Decrease",
+    2: "Stage 2 — Macroalbuminuria / Mild GFR Decrease",
     3: "Stage 3 — Moderate GFR Decrease",
     4: "Stage 4 — Severe GFR Decrease",
     5: "Stage 5 — Kidney Failure",
@@ -336,7 +354,7 @@ STAGE_RECS = {
         "color": "amber",
     },
     2: {
-        "headline": "Kidney filtering function is beginning to decline.",
+        "headline": "Macroalbuminuria or mild GFR decline (eGFR 45–59 or UACR >300 mg/g).",
         "actions": [
             "Refer to a nephrologist for specialist assessment",
             "Reduce dietary protein to 0.8 g/kg/day",
@@ -535,7 +553,7 @@ st.markdown("""
     <p class="platform-name">GlomeraAI</p>
     <p class="platform-sub">CLINICAL INTELLIGENCE PLATFORM &nbsp;·&nbsp; KDIGO 2024 · NHANES-VALIDATED · FAIRNESS-AUDITED</p>
   </div>
-  <div class="platform-badge">AUC 0.961</div>
+  <div class="platform-badge">AUC 0.961 · NHANES Validated</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -575,14 +593,17 @@ with st.sidebar:
     st.markdown("""
     <div style="font-size:.77rem;line-height:1.8;color:#8496b0">
     <strong style="color:#f0f4ff">Three specialist models</strong><br>
-    <span style="color:#7cb3ff">M1</span> Clinical biomarkers<br>
-    <span style="color:#fb923c">M2</span> Lifestyle & medications<br>
-    <span style="color:#c084fc">M3</span> Demographics & history<br><br>
-    Combined by a meta-learner trained on held-out validation data.
+    <span style="color:#7cb3ff">■ M1 RF</span> Clinical biomarkers
+    <span style="color:#7cb3ff;font-family:'DM Mono',monospace;font-size:.7rem"> 53.1%</span><br>
+    <span style="color:#a78bfa">■ M3 LR</span> Demographics &amp; history
+    <span style="color:#a78bfa;font-family:'DM Mono',monospace;font-size:.7rem"> 27.3%</span><br>
+    <span style="color:#fb923c">■ M2 XGB</span> Lifestyle &amp; medications
+    <span style="color:#fb923c;font-family:'DM Mono',monospace;font-size:.7rem"> 19.6%</span><br><br>
+    <span style="color:#8496b0;font-size:.72rem">Meta-learner weights from<br>SHAP analysis on NHANES data</span>
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
-    st.markdown('<div style="font-size:.68rem;color:#475569;text-align:center">NHANES 2015–2020 · n=2,627 · Springer CCIS 2026</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:.68rem;color:#475569;text-align:center">NHANES 2015–2020 · n=2,627 · KDIGO 2024</div>', unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -839,7 +860,7 @@ if st.session_state.page == 0:
 
         c1, c2, c3, c4 = st.columns(4)
         tiles = [
-            (f"Stage {pred}", "KDIGO Stage 0–5", stage_color),
+            (f"Stage {pred}", "KDIGO 2024 Stage (0–5)", stage_color),
             (f"{proba[pred]*100:.0f}%", "Stage probability", "#f0f4ff"),
             (conf_label.split()[0], "AI confidence", conf_color),
             (f"{prog_score:.2f}/5", "Severity score", "#f0f4ff"),
@@ -1146,8 +1167,8 @@ elif st.session_state.page == 1:
                     "mean_sbp": 130.0, "mean_dbp": 78.0,
                     "serum_creatinine_mgdl": 1.2, "log_serum_creatinine_mgdl": np.log1p(1.2),
                     "urine_albumin_ugl": 30.0, "log_urine_albumin_ugl": np.log1p(30.0),
-                    "urine_creatinine_mgdl": 120.0, "uacr_mgg": 0.25,
-                    "log_uacr": np.log10(0.25), "hemoglobin_gdl": 13.5,
+                    "urine_creatinine_mgdl": 120.0, "uacr_mgg": 0.009,
+                    "log_uacr": np.log10(0.009), "hemoglobin_gdl": 13.5,
                     "hematocrit_pct": 40.0, "serum_albumin_gdl": 4.1,
                     "bun_mgdl": 16.0, "log_bun_mgdl": np.log1p(16.0),
                     "uric_acid_mgdl": 5.8, "crp_mgL": 3.5, "log_crp_mgL": np.log1p(3.5),
@@ -1324,7 +1345,7 @@ elif st.session_state.page == 2:
 
     # ── Published KDIGO transition matrix ──────────────────────────────────────
     # Annual stage-to-stage transition rates
-    # Source: Perkins et al. (2021) Diabetes Care; KDIGO 2024 guidelines
+    # Source: KDIGO 2024 Clinical Practice Guidelines (Kidney Int. 105(4S):S117-S314)
     T_ANNUAL = np.array([
         [0.85, 0.10, 0.04, 0.01, 0.00, 0.00],  # From S0
         [0.05, 0.75, 0.15, 0.04, 0.01, 0.00],  # From S1
@@ -1544,13 +1565,13 @@ elif st.session_state.page == 2:
     st.markdown("""
     <div class="disclaimer">
       <strong>⚠ Simulation Disclaimer:</strong> This is a rule-based clinical simulation using
-      published KDIGO population-level stage-transition rates (Perkins et al., 2021; KDIGO 2024).
+      published KDIGO population-level stage-transition rates (KDIGO 2024 Clinical Practice Guidelines).
       It is <strong>not</strong> a trained machine learning model and does <strong>not</strong>
       predict individual patient outcomes. The simulation estimates the probability distribution
       of future stages based on known population-level disease progression patterns. Intervention
       reduction factors are derived from published randomised controlled trial data. All outputs
       require review by a qualified nephrologist or diabetologist before informing any clinical
-      decision. GlomeraAI v1.0 · ICTer 2026 · NHANES 2015–2020 · n=2,627.
+      decision. GlomeraAI · NHANES 2015–2020 · n=2,627 diabetic adults.
     </div>""", unsafe_allow_html=True)
 
 
@@ -1583,9 +1604,9 @@ elif st.session_state.page == 3:
             "data": {
                 "mean_sbp": 118.0, "mean_dbp": 74.0,
                 "serum_creatinine_mgdl": 0.7, "log_serum_creatinine_mgdl": np.log1p(0.7),
-                "urine_albumin_ugl": 8.0,   "log_urine_albumin_ugl": np.log1p(8.0),
-                "urine_creatinine_mgdl": 140.0, "uacr_mgg": 0.057,
-                "log_uacr": np.log10(0.057),
+                "urine_albumin_ugl": 12.0,   "log_urine_albumin_ugl": np.log1p(12.0),
+                "urine_creatinine_mgdl": 140.0, "uacr_mgg": 0.009,
+                "log_uacr": np.log10(0.009),
                 "hba1c_pct": 6.4, "fasting_glucose_mgdl": 112.0,
                 "log_fasting_glucose_mgdl": np.log1p(112.0),
                 "insulin_uiml": 8.0,  "log_insulin_uiml": np.log1p(8.0),
@@ -1614,14 +1635,14 @@ elif st.session_state.page == 3:
         "Stage 1 — Malik, 51M, Microalbuminuria": {
             "label": "Stage 1 — Microalbuminuria",
             "color": "#f59e0b",
-            "summary": "51-year-old male, early DKD, elevated urine albumin",
+            "summary": "51-year-old male, UACR 45 mg/g — early microalbuminuria, eGFR preserved",
             "clinical_note": "Urine albumin elevated but GFR preserved. HbA1c suboptimal at 8.1%. Early intervention with ACE-I and tighter glycaemic control could halt progression. Demonstrates early detection value.",
             "data": {
                 "mean_sbp": 134.0, "mean_dbp": 82.0,
                 "serum_creatinine_mgdl": 0.95, "log_serum_creatinine_mgdl": np.log1p(0.95),
-                "urine_albumin_ugl": 68.0,  "log_urine_albumin_ugl": np.log1p(68.0),
-                "urine_creatinine_mgdl": 110.0, "uacr_mgg": 0.618,
-                "log_uacr": np.log10(0.618),
+                "urine_albumin_ugl": 54000.0,  "log_urine_albumin_ugl": np.log1p(54000.0),
+                "urine_creatinine_mgdl": 120.0, "uacr_mgg": 45.0,
+                "log_uacr": np.log10(45.0),
                 "hba1c_pct": 8.1, "fasting_glucose_mgdl": 162.0,
                 "log_fasting_glucose_mgdl": np.log1p(162.0),
                 "insulin_uiml": 14.0, "log_insulin_uiml": np.log1p(14.0),
@@ -1647,17 +1668,17 @@ elif st.session_state.page == 3:
                 "heart_attack": 0, "stroke_ever": 0, "family_hx_diabetes": 1,
             },
         },
-        "Stage 2 — Anura, 56M, Mild GFR Decrease": {
-            "label": "Stage 2 — Mild GFR Decrease",
+        "Stage 2 — Anura, 56M, Macroalbuminuria": {
+            "label": "Stage 2 — Macroalbuminuria / Mild GFR",
             "color": "#f97316",
-            "summary": "56-year-old male, hypertension, declining filtration",
+            "summary": "56-year-old male, UACR 350 mg/g — macroalbuminuria, eGFR borderline",
             "clinical_note": "GFR beginning to decline with persistent albuminuria. HbA1c poorly controlled at 9.2%. Nephrology referral indicated. Demonstrates detection at the last stage before moderate damage.",
             "data": {
                 "mean_sbp": 145.0, "mean_dbp": 88.0,
                 "serum_creatinine_mgdl": 1.35, "log_serum_creatinine_mgdl": np.log1p(1.35),
-                "urine_albumin_ugl": 145.0, "log_urine_albumin_ugl": np.log1p(145.0),
-                "urine_creatinine_mgdl": 100.0, "uacr_mgg": 1.45,
-                "log_uacr": np.log10(1.45),
+                "urine_albumin_ugl": 385000.0, "log_urine_albumin_ugl": np.log1p(385000.0),
+                "urine_creatinine_mgdl": 110.0, "uacr_mgg": 350.0,
+                "log_uacr": np.log10(350.0),
                 "hba1c_pct": 9.2, "fasting_glucose_mgdl": 188.0,
                 "log_fasting_glucose_mgdl": np.log1p(188.0),
                 "insulin_uiml": 22.0, "log_insulin_uiml": np.log1p(22.0),
@@ -1686,14 +1707,14 @@ elif st.session_state.page == 3:
         "Stage 3 — Nirmala, 63F, Moderate GFR Decrease": {
             "label": "Stage 3 — Moderate GFR Decrease",
             "color": "#ef4444",
-            "summary": "63-year-old female, significant renal impairment, multimorbidity",
+            "summary": "63-year-old female, eGFR 30–44, UACR 200 mg/g, renal anaemia developing",
             "clinical_note": "Established CKD Stage 3 with significant albuminuria and rising creatinine. Anaemia developing. Urgent nephrology co-management required. Demonstrates the system's urgency flagging.",
             "data": {
                 "mean_sbp": 152.0, "mean_dbp": 92.0,
                 "serum_creatinine_mgdl": 1.9,  "log_serum_creatinine_mgdl": np.log1p(1.9),
-                "urine_albumin_ugl": 380.0, "log_urine_albumin_ugl": np.log1p(380.0),
-                "urine_creatinine_mgdl": 90.0,  "uacr_mgg": 4.22,
-                "log_uacr": np.log10(4.22),
+                "urine_albumin_ugl": 180000.0, "log_urine_albumin_ugl": np.log1p(180000.0),
+                "urine_creatinine_mgdl": 90.0, "uacr_mgg": 200.0,
+                "log_uacr": np.log10(200.0),
                 "hba1c_pct": 9.8, "fasting_glucose_mgdl": 210.0,
                 "log_fasting_glucose_mgdl": np.log1p(210.0),
                 "insulin_uiml": 38.0, "log_insulin_uiml": np.log1p(38.0),
@@ -1722,14 +1743,14 @@ elif st.session_state.page == 3:
         "Stage 4 — Rajan, 69M, Severe GFR Decrease": {
             "label": "Stage 4 — Severe GFR Decrease",
             "color": "#a855f7",
-            "summary": "69-year-old male, advanced DKD, approaching dialysis threshold",
+            "summary": "69-year-old male, eGFR 15–29, UACR 500 mg/g, severe renal anaemia",
             "clinical_note": "Near end-stage renal disease. Severe anaemia, markedly elevated creatinine and BUN. Dialysis planning underway. Demonstrates the system's emergency flagging and referral pathway.",
             "data": {
                 "mean_sbp": 165.0, "mean_dbp": 98.0,
                 "serum_creatinine_mgdl": 3.4,  "log_serum_creatinine_mgdl": np.log1p(3.4),
-                "urine_albumin_ugl": 820.0, "log_urine_albumin_ugl": np.log1p(820.0),
-                "urine_creatinine_mgdl": 75.0,  "uacr_mgg": 10.93,
-                "log_uacr": np.log10(10.93),
+                "urine_albumin_ugl": 375000.0, "log_urine_albumin_ugl": np.log1p(375000.0),
+                "urine_creatinine_mgdl": 75.0, "uacr_mgg": 500.0,
+                "log_uacr": np.log10(500.0),
                 "hba1c_pct": 10.5, "fasting_glucose_mgdl": 240.0,
                 "log_fasting_glucose_mgdl": np.log1p(240.0),
                 "insulin_uiml": 55.0, "log_insulin_uiml": np.log1p(55.0),
@@ -1758,14 +1779,14 @@ elif st.session_state.page == 3:
         "Stage 5 — Kamala, 72F, Kidney Failure": {
             "label": "Stage 5 — Kidney Failure",
             "color": "#94a3b8",
-            "summary": "72-year-old female, ESRD, on dialysis pathway",
+            "summary": "72-year-old female, eGFR <15, UACR 800 mg/g, critical renal failure",
             "clinical_note": "End-stage renal disease requiring renal replacement therapy. Severe anaemia, critical electrolyte imbalances, profound albuminuria. Demonstrates complete staging capability across all 6 classes.",
             "data": {
                 "mean_sbp": 178.0, "mean_dbp": 104.0,
                 "serum_creatinine_mgdl": 6.8,  "log_serum_creatinine_mgdl": np.log1p(6.8),
-                "urine_albumin_ugl": 1850.0, "log_urine_albumin_ugl": np.log1p(1850.0),
-                "urine_creatinine_mgdl": 55.0,  "uacr_mgg": 33.64,
-                "log_uacr": np.log10(33.64),
+                "urine_albumin_ugl": 440000.0, "log_urine_albumin_ugl": np.log1p(440000.0),
+                "urine_creatinine_mgdl": 55.0, "uacr_mgg": 800.0,
+                "log_uacr": np.log10(800.0),
                 "hba1c_pct": 11.8, "fasting_glucose_mgdl": 290.0,
                 "log_fasting_glucose_mgdl": np.log1p(290.0),
                 "insulin_uiml": 72.0, "log_insulin_uiml": np.log1p(72.0),
