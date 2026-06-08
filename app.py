@@ -34,39 +34,49 @@ st.markdown("""
     --blue:   #1a6efc;
     --teal:   #0cc8b0;
     --slate:  #8496b0;
+    --light:  #c8d8e8;
     --border: rgba(255,255,255,0.07);
     --card:   rgba(255,255,255,0.04);
     --white:  #f0f4ff;
-    --s0:  #10b981; --s1: #f59e0b; --s2: #f97316;
-    --s3:  #ef4444; --s4: #a855f7; --s5: #1e293b;
 }
 
-html, body, [class*="css"] {
-    font-family: 'DM Sans', sans-serif;
-    background: var(--navy) !important;
-    color: var(--white);
-}
+/* ── Global reset ── */
+html, body { background: var(--navy) !important; color: var(--white) !important; }
+[class*="css"] { font-family: 'DM Sans', sans-serif !important; }
+
+/* ── Main app background and text ── */
+.main, section[data-testid="stMain"] { background: var(--navy) !important; }
+.main .block-container { padding: 1.5rem 2.5rem; max-width: 1280px; color: var(--white); }
+
+/* All paragraph/text in main area */
+.main p, .main span, .main div, .main li, .main td, .main th,
+section[data-testid="stMain"] p,
+section[data-testid="stMain"] span { color: var(--light); }
+
+/* Headings stay bright */
+.main h1, .main h2, .main h3, .main h4, .main h5,
+section[data-testid="stMain"] h1,
+section[data-testid="stMain"] h2,
+section[data-testid="stMain"] h3 { color: var(--white) !important; }
 
 /* ── Sidebar ── */
 div[data-testid="stSidebarContent"] {
     background: var(--navy2) !important;
     border-right: 1px solid var(--border);
 }
-div[data-testid="stSidebarContent"] * { color: #8496b0 !important; }
-div[data-testid="stSidebarContent"] strong { color: #f0f4ff !important; }
-div[data-testid="stSidebarContent"] span[style*="color"] { color: inherit !important; }
-div[data-testid="stSidebarContent"] h3 { color: var(--white) !important; font-family: 'Playfair Display', serif; }
-
+div[data-testid="stSidebarContent"] *           { color: #8496b0 !important; }
+div[data-testid="stSidebarContent"] strong       { color: #e2eaf5 !important; }
+div[data-testid="stSidebarContent"] h3           { color: var(--white) !important; font-family: 'Playfair Display', serif !important; }
 div[data-testid="stSidebarContent"] .stButton > button {
     width: 100%; text-align: left;
     background: transparent; border: none;
     border-radius: 8px; padding: .5rem .85rem;
-    font-size: .85rem; font-weight: 500; color: var(--slate) !important;
-    transition: all .15s;
+    font-size: .85rem; font-weight: 500;
+    color: #8496b0 !important; transition: all .15s;
 }
 div[data-testid="stSidebarContent"] .stButton > button:hover {
-    background: var(--card) !important;
-    color: var(--white) !important; border: none !important;
+    background: rgba(255,255,255,.06) !important;
+    color: #e2eaf5 !important; border: none !important;
 }
 div[data-testid="stSidebarContent"] .nav-active .stButton > button {
     background: rgba(26,110,252,.18) !important;
@@ -74,8 +84,170 @@ div[data-testid="stSidebarContent"] .nav-active .stButton > button {
     border-left: 3px solid var(--blue) !important;
 }
 
-/* ── Main surface ── */
-.main .block-container { padding: 1.5rem 2.5rem; max-width: 1280px; }
+/* ── Labels (all input labels) ── */
+label,
+div[data-testid="stWidgetLabel"] p,
+div[data-testid="stWidgetLabel"] span,
+.stSlider label, .stNumberInput label,
+.stSelectbox label, .stTextInput label,
+.stTextArea label, .stCheckbox label,
+.stRadio label { color: #a0b4cc !important; font-size: .82rem !important; font-weight: 500 !important; }
+
+/* ── Number inputs ── */
+input[type="number"], input[type="text"], textarea {
+    background: rgba(255,255,255,.06) !important;
+    border: 1px solid rgba(255,255,255,.12) !important;
+    color: var(--white) !important;
+    border-radius: 8px !important;
+}
+input[type="number"]:focus, input[type="text"]:focus {
+    border-color: var(--blue) !important;
+    box-shadow: 0 0 0 2px rgba(26,110,252,.2) !important;
+}
+
+/* ── Selectbox ── */
+div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
+    background: rgba(255,255,255,.06) !important;
+    border: 1px solid rgba(255,255,255,.12) !important;
+    border-radius: 8px !important;
+}
+div[data-testid="stSelectbox"] div[data-baseweb="select"] span,
+div[data-testid="stSelectbox"] div[data-baseweb="select"] div {
+    color: var(--white) !important;
+    background: transparent !important;
+}
+/* Dropdown menu */
+ul[data-testid="stSelectboxVirtualDropdown"],
+div[role="listbox"],
+div[data-baseweb="popover"] ul {
+    background: #1a2744 !important;
+    border: 1px solid rgba(255,255,255,.1) !important;
+    border-radius: 8px !important;
+}
+div[role="option"], li[role="option"] {
+    color: var(--white) !important;
+    background: transparent !important;
+}
+div[role="option"]:hover, li[role="option"]:hover {
+    background: rgba(26,110,252,.2) !important;
+}
+
+/* ── Slider ── */
+div[data-testid="stSlider"] { color: var(--light) !important; }
+div[data-testid="stSlider"] p { color: var(--light) !important; }
+div[data-testid="stSlider"] div[data-testid="stTickBarMin"],
+div[data-testid="stSlider"] div[data-testid="stTickBarMax"] { color: #8496b0 !important; }
+div[data-testid="stThumbValue"] { color: var(--white) !important; }
+/* Slider track */
+div[data-baseweb="slider"] div[role="slider"] { background: var(--blue) !important; }
+
+/* ── Markdown / write text ── */
+div[data-testid="stMarkdownContainer"] p,
+div[data-testid="stMarkdownContainer"] li,
+div[data-testid="stMarkdownContainer"] span,
+div[data-testid="stText"] { color: var(--light) !important; }
+div[data-testid="stMarkdownContainer"] strong { color: var(--white) !important; }
+div[data-testid="stMarkdownContainer"] a { color: #7cb3ff !important; }
+
+/* ── st.write / st.text ── */
+div[data-testid="stText"] p { color: var(--light) !important; }
+
+/* ── Caption ── */
+div[data-testid="stCaptionContainer"] p { color: #8496b0 !important; font-size: .75rem !important; }
+
+/* ── Metrics ── */
+div[data-testid="stMetric"]       { color: var(--white) !important; }
+div[data-testid="stMetricLabel"]  p { color: #8496b0 !important; font-size: .75rem !important; }
+div[data-testid="stMetricValue"]  div { color: var(--white) !important; font-family: 'DM Mono', monospace !important; }
+div[data-testid="stMetricDelta"]  div { color: #10b981 !important; }
+
+/* ── Dataframe ── */
+div[data-testid="stDataFrame"] {
+    background: rgba(255,255,255,.03) !important;
+    border-radius: 10px; border: 1px solid var(--border) !important;
+}
+div[data-testid="stDataFrame"] th,
+div[data-testid="stDataFrame"] td { color: var(--light) !important; }
+div[data-testid="stDataFrame"] thead th { color: var(--white) !important; background: rgba(255,255,255,.06) !important; }
+
+/* ── Tabs ── */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 4px; background: rgba(255,255,255,.04);
+    border-radius: 10px; padding: 4px;
+    border: none !important;
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 8px; font-size: .82rem; font-weight: 600;
+    padding: .45rem 1.1rem; color: #8496b0 !important;
+    background: transparent !important;
+}
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    background: rgba(26,110,252,.25) !important;
+    color: #7cb3ff !important;
+}
+.stTabs [data-baseweb="tab-panel"] { color: var(--light) !important; }
+
+/* ── Expander ── */
+div[data-testid="stExpander"] summary span { color: var(--light) !important; }
+div[data-testid="stExpander"] { border: 1px solid var(--border) !important; border-radius: 8px !important; }
+
+/* ── Checkbox / Radio ── */
+div[data-testid="stCheckbox"] span,
+div[data-testid="stRadio"] span { color: var(--light) !important; }
+
+/* ── Alert / info / warning / error boxes ── */
+div[data-testid="stAlert"] {
+    border-radius: 10px !important;
+    border-left: 4px solid !important;
+}
+div[data-testid="stAlert"][kind="info"],
+div[data-testid="stAlert"] {
+    background: rgba(26,110,252,.08) !important;
+    border-color: rgba(26,110,252,.4) !important;
+    color: #a0c4ff !important;
+}
+div[data-testid="stAlert"] p,
+div[data-testid="stAlert"] span { color: #a0c4ff !important; }
+div[data-testid="stAlert"][kind="warning"] { background: rgba(245,158,11,.08) !important; border-color: rgba(245,158,11,.4) !important; }
+div[data-testid="stAlert"][kind="error"]   { background: rgba(239,68,68,.08) !important; border-color: rgba(239,68,68,.4) !important; }
+div[data-testid="stAlert"][kind="success"] { background: rgba(16,185,129,.08) !important; border-color: rgba(16,185,129,.4) !important; }
+
+/* ── Spinner ── */
+div[data-testid="stSpinner"] p,
+div[data-testid="stSpinner"] span { color: #8496b0 !important; }
+
+/* ── Divider ── */
+hr { border-color: var(--border) !important; margin: 1.5rem 0 !important; }
+
+/* ── Buttons ── */
+.stButton > button {
+    background: rgba(255,255,255,.06) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: 10px !important;
+    color: var(--light) !important;
+    font-weight: 500 !important;
+    transition: all .2s !important;
+}
+.stButton > button:hover {
+    background: rgba(255,255,255,.1) !important;
+    border-color: rgba(255,255,255,.2) !important;
+    color: var(--white) !important;
+}
+.stButton > button[kind="primary"],
+button[kind="primary"] {
+    background: linear-gradient(135deg, #1a6efc, #0ea5e9) !important;
+    border: none !important;
+    color: #fff !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 20px rgba(26,110,252,.35) !important;
+}
+.stButton > button[kind="primary"]:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 6px 24px rgba(26,110,252,.5) !important;
+}
+
+/* ── Select slider ── */
+div[data-testid="stSlider"] div[class*="stSlider"] span { color: var(--light) !important; }
 
 /* ── Platform header ── */
 .platform-header {
@@ -86,16 +258,10 @@ div[data-testid="stSidebarContent"] .nav-active .stButton > button {
     border-radius: 16px; margin-bottom: 1.8rem;
     position: relative; overflow: hidden;
 }
-.platform-header::before {
-    content: ''; position: absolute; inset: 0;
-    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%231a6efc' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-}
-.platform-icon { font-size: 2.4rem; }
 .platform-name {
     font-family: 'Playfair Display', serif;
     font-size: 1.6rem; font-weight: 800;
-    color: var(--white); margin: 0;
-    letter-spacing: -.02em;
+    color: var(--white); margin: 0; letter-spacing: -.02em;
 }
 .platform-sub {
     font-size: .72rem; color: var(--slate);
@@ -104,8 +270,7 @@ div[data-testid="stSidebarContent"] .nav-active .stButton > button {
 }
 .platform-badge {
     margin-left: auto;
-    background: rgba(12,200,176,.15);
-    border: 1px solid rgba(12,200,176,.3);
+    background: rgba(12,200,176,.15); border: 1px solid rgba(12,200,176,.3);
     border-radius: 20px; padding: .3rem .9rem;
     font-size: .72rem; font-weight: 600;
     color: var(--teal); font-family: 'DM Mono', monospace;
@@ -113,36 +278,25 @@ div[data-testid="stSidebarContent"] .nav-active .stButton > button {
 
 /* ── Cards ── */
 .glass-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 14px; padding: 1.3rem 1.5rem;
-    margin-bottom: 1rem;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.3rem 1.5rem; margin-bottom: 1rem;
+    color: var(--light);
 }
 .stage-result-card {
     border-radius: 18px; padding: 2rem 2.2rem;
-    margin-bottom: 1.5rem;
-    border: 1px solid; position: relative; overflow: hidden;
-}
-.stage-result-card::after {
-    content: ''; position: absolute;
-    top: -40px; right: -40px;
-    width: 140px; height: 140px;
-    border-radius: 50%; opacity: .06;
-    background: currentColor;
+    margin-bottom: 1.5rem; border: 1px solid;
+    position: relative; overflow: hidden;
 }
 
-/* ── Metric tiles ── */
-.kpi-row { display: flex; gap: .9rem; margin: 1rem 0; }
+/* ── KPI tiles ── */
 .kpi-tile {
-    flex: 1; background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 12px; padding: 1.1rem 1.3rem;
-    text-align: center;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.1rem 1.3rem; text-align: center;
 }
 .kpi-val {
     font-family: 'DM Mono', monospace;
-    font-size: 1.9rem; font-weight: 700;
-    line-height: 1; margin-bottom: .3rem;
+    font-size: 1.9rem; font-weight: 700; line-height: 1; margin-bottom: .3rem;
+    color: var(--white);
 }
 .kpi-lbl {
     font-size: .68rem; color: var(--slate);
@@ -153,44 +307,42 @@ div[data-testid="stSidebarContent"] .nav-active .stButton > button {
 .sect-hdr {
     font-size: .72rem; font-weight: 700; color: var(--teal);
     text-transform: uppercase; letter-spacing: .12em;
-    padding-left: .7rem;
-    border-left: 3px solid var(--teal);
+    padding-left: .7rem; border-left: 3px solid var(--teal);
     margin: 1.6rem 0 .9rem;
 }
 
-/* ── Recommendation box ── */
+/* ── Rec blocks ── */
 .rec-block {
     border-radius: 12px; padding: 1rem 1.3rem;
     margin: .8rem 0; border-left: 4px solid;
-    font-size: .86rem; line-height: 1.7;
+    font-size: .86rem; line-height: 1.7; color: var(--light);
 }
+.rec-block strong { color: var(--white) !important; }
 .rec-block.green  { background: rgba(16,185,129,.08); border-color: #10b981; }
 .rec-block.amber  { background: rgba(245,158,11,.08);  border-color: #f59e0b; }
 .rec-block.orange { background: rgba(249,115,22,.08);  border-color: #f97316; }
 .rec-block.red    { background: rgba(239,68,68,.08);   border-color: #ef4444; }
 .rec-block.purple { background: rgba(168,85,247,.08);  border-color: #a855f7; }
 .rec-block.slate  { background: rgba(30,41,59,.5);     border-color: #475569; }
-.rec-block.blue   { background: rgba(26,110,252,.08);  border-color: var(--blue); }
-.rec-block.teal   { background: rgba(12,200,176,.08);  border-color: var(--teal); }
+.rec-block.blue   { background: rgba(26,110,252,.08);  border-color: #1a6efc; }
+.rec-block.teal   { background: rgba(12,200,176,.08);  border-color: #0cc8b0; }
 
-/* ── Progression verdict ── */
+/* ── Verdict cards ── */
 .verdict-card {
-    border-radius: 16px; padding: 1.5rem 1.8rem; margin: 1rem 0;
-    border: 1px solid;
+    border-radius: 16px; padding: 1.5rem 1.8rem; margin: 1rem 0; border: 1px solid;
 }
 .verdict-card.danger  { background: rgba(239,68,68,.07);   border-color: rgba(239,68,68,.3); }
 .verdict-card.warning { background: rgba(245,158,11,.07);  border-color: rgba(245,158,11,.3); }
 .verdict-card.safe    { background: rgba(16,185,129,.07);  border-color: rgba(16,185,129,.3); }
-.verdict-title { font-size: 1.1rem; font-weight: 800; margin-bottom: .5rem; }
+.verdict-title { font-size: 1.1rem; font-weight: 800; margin-bottom: .5rem; color: var(--white); }
 .verdict-body  { font-size: .87rem; color: var(--slate); line-height: 1.7; }
 
-/* ── Model domain badges ── */
+/* ── Domain badges ── */
 .domain-badge {
     border-radius: 12px; padding: .85rem 1.1rem;
-    margin-bottom: .7rem; border: 1px solid var(--border);
-    border-left: 4px solid;
+    margin-bottom: .7rem; border: 1px solid var(--border); border-left: 4px solid;
 }
-.domain-badge.rf  { border-left-color: var(--blue);  background: rgba(26,110,252,.06); }
+.domain-badge.rf  { border-left-color: #1a6efc; background: rgba(26,110,252,.06); }
 .domain-badge.xgb { border-left-color: #f97316; background: rgba(249,115,22,.06); }
 .domain-badge.lr  { border-left-color: #a855f7; background: rgba(168,85,247,.06); }
 .domain-badge h4  { margin: 0 0 .3rem; font-size: .88rem; font-weight: 700; color: var(--white); }
@@ -203,14 +355,14 @@ div[data-testid="stSidebarContent"] .nav-active .stButton > button {
     display: flex; align-items: center; justify-content: center;
     font-size: .78rem; font-weight: 700;
 }
-.step-dot.done   { background: var(--teal); color: var(--navy); }
-.step-dot.active { background: var(--blue); color: #fff; box-shadow: 0 0 0 5px rgba(26,110,252,.2); }
-.step-dot.todo   { background: rgba(255,255,255,.08); color: var(--slate); }
-.step-label { font-size: .67rem; color: var(--slate); margin-top: .35rem; text-align: center; font-weight: 600; }
+.step-dot.done   { background: #0cc8b0; color: #0b1426; }
+.step-dot.active { background: #1a6efc; color: #fff; box-shadow: 0 0 0 5px rgba(26,110,252,.2); }
+.step-dot.todo   { background: rgba(255,255,255,.08); color: #8496b0; }
+.step-label { font-size: .67rem; color: #8496b0; margin-top: .35rem; text-align: center; font-weight: 600; }
 .step-line { width: 50px; height: 2px; background: rgba(255,255,255,.08); margin: 0 4px; }
-.step-line.done { background: var(--teal); }
+.step-line.done { background: #0cc8b0; }
 
-/* ── Chip ── */
+/* ── Chips ── */
 .chip {
     display: inline-block; padding: .22rem .75rem;
     border-radius: 20px; font-size: .71rem; font-weight: 700; margin: .15rem;
@@ -221,83 +373,33 @@ div[data-testid="stSidebarContent"] .nav-active .stButton > button {
 .chip.blue   { background: rgba(26,110,252,.15);  color: #7cb3ff; border: 1px solid rgba(26,110,252,.3); }
 .chip.purple { background: rgba(168,85,247,.15);  color: #c084fc; border: 1px solid rgba(168,85,247,.3); }
 
-/* ── Tabs ── */
-/* Metrics */
-div[data-testid="stMetric"] label { color: #8496b0 !important; }
-div[data-testid="stMetricValue"] { color: #f0f4ff !important; }
-div[data-testid="stMetricDelta"] { color: #10b981 !important; }
-
-/* Dataframe */
-div[data-testid="stDataFrame"] { background: rgba(255,255,255,.03) !important; border-radius: 10px; }
-
-/* Spinner */
-div[data-testid="stSpinner"] p { color: #8496b0 !important; }
-
-/* Selectbox options */
-div[data-testid="stSelectbox"] div[data-baseweb="select"] div {
-    color: #f0f4ff !important; background: #111d35 !important;
-}
-
-.stTabs [data-baseweb="tab-list"] {
-    gap: 4px; background: rgba(255,255,255,.04);
-    border-radius: 10px; padding: 4px;
-}
-.stTabs [data-baseweb="tab"] {
-    border-radius: 8px; font-size: .82rem; font-weight: 600;
-    padding: .45rem 1.1rem; color: var(--slate);
-}
-.stTabs [data-baseweb="tab"][aria-selected="true"] {
-    background: rgba(26,110,252,.25) !important;
-    color: #7cb3ff !important;
-}
-
-/* ── Input labels ── */
-label { color: #a0b4cc !important; font-size: .82rem !important; font-weight: 500 !important; }
-.stNumberInput input, .stSelectbox > div > div {
-    background: rgba(255,255,255,.05) !important;
-    border: 1px solid var(--border) !important;
-    color: var(--white) !important; border-radius: 8px !important;
-}
-
-/* ── Buttons ── */
-.stButton > button[kind="primary"] {
-    background: linear-gradient(135deg, var(--blue), #0ea5e9) !important;
-    border: none !important; border-radius: 10px !important;
-    font-weight: 700 !important; color: #fff !important;
-    padding: .6rem 1.4rem !important;
-    box-shadow: 0 4px 20px rgba(26,110,252,.35) !important;
-    transition: all .2s !important;
-}
-.stButton > button[kind="primary"]:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 24px rgba(26,110,252,.5) !important;
-}
-
 /* ── Disclaimer ── */
 .disclaimer {
-    background: rgba(255,255,255,.03);
-    border: 1px solid var(--border);
+    background: rgba(255,255,255,.03); border: 1px solid var(--border);
     border-radius: 10px; padding: .9rem 1.2rem;
-    font-size: .74rem; color: var(--slate);
+    font-size: .74rem; color: #8496b0;
     margin-top: 2rem; line-height: 1.7;
 }
 .disclaimer strong { color: #f87171; }
 
-/* ── matplotlib plots ── */
-.stPlotlyChart, .stPyplot { border-radius: 12px; overflow: hidden; }
+/* ── Select-slider (st.select_slider) ── */
+div[data-testid="stSelectSlider"] span,
+div[data-testid="stSelectSlider"] p { color: var(--light) !important; }
 
-/* ── Progress bar ── */
-div[data-testid="stProgress"] > div { background: var(--blue) !important; border-radius: 4px; }
+/* ── Multiselect ── */
+div[data-testid="stMultiSelect"] span { color: var(--light) !important; }
+span[data-baseweb="tag"] { background: rgba(26,110,252,.25) !important; color: #7cb3ff !important; }
 
-/* ── Divider ── */
-hr { border-color: var(--border) !important; }
+/* ── Column container text pass-through ── */
+div[data-testid="stHorizontalBlock"] p,
+div[data-testid="stVerticalBlock"] p { color: var(--light) !important; }
 
-/* ── Info / warning boxes ── */
-div[data-testid="stAlert"] {
-    background: rgba(26,110,252,.08) !important;
-    border: 1px solid rgba(26,110,252,.2) !important;
-    border-radius: 10px !important; color: var(--slate) !important;
-}
+/* ── st.info context ── */
+div.stAlert p { color: #a0c4ff !important; }
+
+/* ── Tooltip ── */
+div[data-testid="stTooltipIcon"] { color: #8496b0 !important; }
+div[data-baseweb="tooltip"] div { background: #1a2744 !important; color: var(--white) !important; border-radius: 8px !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -575,7 +677,7 @@ with st.sidebar:
     nav = {
         0: ("🩺", "Patient Assessment"),
         1: ("📈", "HbA1c What-If"),
-        2: ("🔮", "Progression Simulation"),
+        2: ("⚙️", "Risk Sensitivity"),
         3: ("🎯", "Demo Patients"),
     }
 
@@ -605,10 +707,8 @@ with st.sidebar:
     st.markdown("---")
     st.markdown('<div style="font-size:.68rem;color:#475569;text-align:center">NHANES 2015–2020 · n=2,627 · KDIGO 2024</div>', unsafe_allow_html=True)
 
-
-# ══════════════════════════════════════════════════════════════════════════════
 # PAGE 0 — Patient Assessment (wizard)
-# ══════════════════════════════════════════════════════════════════════════════
+
 if st.session_state.page == 0:
 
     # ── Sub-page state ─────────────────────────────────────────────────────────
@@ -1094,10 +1194,8 @@ if st.session_state.page == 0:
                 st.session_state.patient = {}
                 st.rerun()
 
-
-# ══════════════════════════════════════════════════════════════════════════════
 # PAGE 1 — HbA1c What-If Trajectory (CORE NEW FEATURE)
-# ══════════════════════════════════════════════════════════════════════════════
+
 elif st.session_state.page == 1:
 
     st.markdown("""
@@ -1323,262 +1421,278 @@ elif st.session_state.page == 1:
       All outputs require review by a qualified clinician.
     </div>""", unsafe_allow_html=True)
 
-
-# ══════════════════════════════════════════════════════════════════════════════
 # PAGE 2 — Progression Risk Simulation (SUPPORTING FEATURE)
-# ══════════════════════════════════════════════════════════════════════════════
+
 elif st.session_state.page == 2:
 
     st.markdown("""
     <div style="margin-bottom:1.5rem">
       <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:800;color:#f0f4ff;margin-bottom:.3rem">
-        24-Month Progression Risk Simulation
+        Multi-Factor Risk Sensitivity Analysis
       </div>
       <div style="font-size:.82rem;color:#8496b0;line-height:1.7">
-        A rule-based clinical simulation combining this patient's GlomeraAI risk profile with
-        published KDIGO annual stage-transition rates. Shows the probability distribution of
-        where the patient could be at 6, 12, and 24 months under different intervention scenarios.
-        <strong>This is a population-level simulation, not an individual prediction.</strong>
+        Uses the trained GlomeraAI ensemble to show how this patient's DKD risk profile changes
+        as multiple clinical risk factors are simultaneously modified. Every result is a real
+        model prediction — not a simulation or statistical approximation.
+        Clinicians can explore the combined effect of realistic intervention targets
+        before deciding on a management plan.
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Published KDIGO transition matrix ──────────────────────────────────────
-    # Annual stage-to-stage transition rates
-    # Source: KDIGO 2024 Clinical Practice Guidelines (Kidney Int. 105(4S):S117-S314)
-    T_ANNUAL = np.array([
-        [0.85, 0.10, 0.04, 0.01, 0.00, 0.00],  # From S0
-        [0.05, 0.75, 0.15, 0.04, 0.01, 0.00],  # From S1
-        [0.02, 0.05, 0.72, 0.17, 0.03, 0.01],  # From S2
-        [0.01, 0.02, 0.08, 0.70, 0.16, 0.03],  # From S3
-        [0.00, 0.01, 0.02, 0.07, 0.72, 0.18],  # From S4
-        [0.00, 0.00, 0.00, 0.01, 0.09, 0.90],  # From S5
-    ])
-    T_ANNUAL = T_ANNUAL / T_ANNUAL.sum(axis=1, keepdims=True)
-
-    INTERVENTIONS = {
-        "No intervention (natural history)":     1.00,
-        "Blood pressure optimised":               0.78,
-        "HbA1c optimised (<7%)":                 0.72,
-        "RAS blockade (ACE-I / ARB) initiated":  0.65,
-        "SGLT2 inhibitor initiated":              0.60,
-        "All interventions combined":             0.40,
-    }
-
     has_patient = bool(st.session_state.patient)
 
-    st.markdown('<p class="sect-hdr">Patient Risk Profile</p>', unsafe_allow_html=True)
-
-    if has_patient and "last_proba" in st.session_state:
-        proba_input = st.session_state["last_proba"]
-        pred_input  = st.session_state["last_pred"]
-        st.markdown(f"""<div class="rec-block teal">
-          Using current patient assessment — <strong>{STAGE_NAMES[pred_input]}</strong>
-          (confidence {proba_input[pred_input]*100:.0f}%). Adjust sliders below to override.
-        </div>""", unsafe_allow_html=True)
-    else:
-        proba_input = None
-        pred_input  = 2
+    if not has_patient:
         st.markdown("""<div class="rec-block amber">
-          No patient loaded. Use the sliders below to enter stage probabilities manually,
-          or complete the Patient Assessment first.
+          No patient loaded. Complete the Patient Assessment first to run the sensitivity
+          analysis with real patient data.
         </div>""", unsafe_allow_html=True)
+        st.stop()
 
-    st.markdown("**Enter or confirm current stage probabilities from GlomeraAI assessment:**")
-    cols = st.columns(6)
-    raw_p = []
-    for i, col in enumerate(cols):
-        with col:
-            default = float(round(proba_input[i], 2)) if proba_input is not None else (0.5 if i==2 else 0.1)
-            p = st.number_input(
-                f"P(S{i})", 0.0, 1.0,
-                value=min(1.0, max(0.0, default)),
-                step=0.01, key=f"sp_{i}"
-            )
-            raw_p.append(p)
+    base = dict(st.session_state.patient)
+    current_pred  = st.session_state.get("last_pred", 2)
+    current_proba = st.session_state.get("last_proba", np.array([1/6]*6))
 
-    total = sum(raw_p)
-    if total > 0:
-        proba_norm = np.array(raw_p) / total
-    else:
-        proba_norm = np.array([1/6]*6)
+    st.markdown(f"""<div class="rec-block teal">
+      Running sensitivity analysis for current patient —
+      <strong>{STAGE_NAMES[current_pred]}</strong>
+      (model confidence {current_proba[current_pred]*100:.0f}%).
+      Adjust the target values below and run the analysis to see how the risk profile changes.
+    </div>""", unsafe_allow_html=True)
 
-    # Show current risk bar
-    fig_bar, ax_bar = plt.subplots(figsize=(9, 1.0))
-    left = 0
-    for s in range(6):
-        ax_bar.barh(0, proba_norm[s], left=left, color=STAGE_COLORS[s], alpha=0.85)
-        if proba_norm[s] > 0.06:
-            ax_bar.text(left + proba_norm[s]/2, 0, f"S{s}\n{proba_norm[s]*100:.0f}%",
-                        ha="center", va="center", fontsize=8, color="white", fontweight="bold")
-        left += proba_norm[s]
-    ax_bar.set_xlim(0, 1); ax_bar.axis("off")
-    plt.tight_layout()
-    st.pyplot(fig_bar, use_container_width=True); plt.close()
+    st.markdown('<p class="sect-hdr">Set Intervention Targets</p>', unsafe_allow_html=True)
+    st.markdown("""<div style="font-size:.79rem;color:#8496b0;margin-bottom:1rem;line-height:1.6">
+      Each slider represents a modifiable risk factor. Set it to the target value you are considering
+      clinically. The model will be re-run with all selected changes applied simultaneously.
+    </div>""", unsafe_allow_html=True)
 
-    st.markdown('<p class="sect-hdr">Simulation Settings</p>', unsafe_allow_html=True)
-    col_set1, col_set2 = st.columns(2)
-    with col_set1:
-        intervention = st.selectbox("Intervention scenario", list(INTERVENTIONS.keys()))
-    with col_set2:
-        n_sims = st.select_slider("Monte Carlo simulations", [1000, 2000, 5000, 10000], value=5000)
+    col_a, col_b = st.columns(2)
 
-    if st.button("▶  Run 24-Month Simulation", type="primary"):
-        factor = INTERVENTIONS[intervention]
+    with col_a:
+        st.markdown("**Glycaemic Control**")
+        t_hba1c = st.slider(
+            "Target HbA1c (%)",
+            4.0, 14.0,
+            float(round(base.get("hba1c_pct", 9.0), 1)),
+            step=0.1,
+            help="Reducing HbA1c reduces glomerular hyperfiltration and slows albuminuria progression (KDIGO 2024)"
+        )
+        t_glucose = st.slider(
+            "Target Fasting Glucose (mg/dL)",
+            70.0, 400.0,
+            float(round(base.get("fasting_glucose_mgdl", 180.0), 0)),
+            step=5.0
+        )
 
-        # Build monthly transition matrix with intervention adjustment
-        T_adj = T_ANNUAL.copy()
-        for i in range(6):
-            for j in range(6):
-                if j > i:
-                    T_adj[i, j] *= factor
-            row_sum = T_adj[i].sum()
-            if row_sum > 0:
-                T_adj[i] = T_adj[i] / row_sum
+        st.markdown("**Blood Pressure**")
+        t_sbp = st.slider(
+            "Target Systolic BP (mmHg)",
+            90, 200,
+            int(round(base.get("mean_sbp", 145.0))),
+            step=1,
+            help="KDIGO 2024 target: <120 mmHg in patients with albuminuria"
+        )
+        t_dbp = st.slider(
+            "Target Diastolic BP (mmHg)",
+            50, 130,
+            int(round(base.get("mean_dbp", 88.0))),
+            step=1
+        )
 
-        # Approximate monthly matrix: T^(1/12)
-        try:
-            from scipy.linalg import fractional_matrix_power
-            T_monthly = fractional_matrix_power(T_adj, 1/12)
-            T_monthly = np.clip(np.real(T_monthly), 0, 1)
-            T_monthly = T_monthly / T_monthly.sum(axis=1, keepdims=True)
-        except Exception:
-            # Fallback: approximate with 12th root via eigendecomposition
-            T_monthly = T_adj ** (1/12)
-            T_monthly = np.clip(T_monthly, 0, 1)
-            T_monthly = T_monthly / T_monthly.sum(axis=1, keepdims=True)
+    with col_b:
+        st.markdown("**Body Composition & Lipids**")
+        t_bmi = st.slider(
+            "Target BMI (kg/m²)",
+            15.0, 50.0,
+            float(round(base.get("bmi_kgm2", 30.0), 1)),
+            step=0.5,
+            help="BMI reduction reduces insulin resistance and kidney stress"
+        )
+        t_trig = st.slider(
+            "Target Triglycerides (mg/dL)",
+            50.0, 800.0,
+            float(round(base.get("triglycerides_mgdl", 220.0), 0)),
+            step=10.0
+        )
+        t_hdl = st.slider(
+            "Target HDL Cholesterol (mg/dL)",
+            20.0, 120.0,
+            float(round(base.get("hdl_cholesterol_mgdl", 38.0), 1)),
+            step=1.0,
+            help="Low HDL is an independent predictor of DKD progression"
+        )
 
-        # Monte Carlo
-        with st.spinner(f"Running {n_sims:,} simulations over 24 months..."):
-            rng = np.random.default_rng(42)
-            initial_stages = rng.choice(6, size=n_sims, p=proba_norm)
-            trajectories = np.zeros((n_sims, 25), dtype=np.int8)
-            trajectories[:, 0] = initial_stages
-            for t in range(1, 25):
-                for sim in range(n_sims):
-                    cur = trajectories[sim, t-1]
-                    trajectories[sim, t] = rng.choice(6, p=T_monthly[cur])
+        st.markdown("**Lifestyle Modifications**")
+        t_sedentary = st.slider(
+            "Target sedentary time/day (minutes)",
+            0, 900,
+            int(round(base.get("sedentary_minutes_per_day", 420))),
+            step=30,
+            help="Reducing sedentary time improves insulin sensitivity and cardiovascular outcomes"
+        )
+        t_smoker = st.selectbox(
+            "Smoking status target",
+            [0, 1, 2],
+            index=int(base.get("current_smoker_status", 0)),
+            format_func=lambda x: ["Non-smoker", "Former smoker", "Current smoker"][x],
+            help="Smoking cessation is a KDIGO 2024 recommended intervention"
+        )
 
-        # Compute probabilities over time
-        time_points = np.arange(25)
-        prob_time = np.zeros((25, 6))
-        for t in time_points:
-            for s in range(6):
-                prob_time[t, s] = (trajectories[:, t] == s).mean()
+    if st.button("▶  Run Sensitivity Analysis", type="primary", use_container_width=False):
 
-        # Key milestones
-        st.markdown('<p class="sect-hdr">Key Risk Milestones</p>', unsafe_allow_html=True)
-        mc1, mc2, mc3 = st.columns(3)
-        for months_pt, col in [(6, mc1), (12, mc2), (24, mc3)]:
-            stage_at_t = trajectories[:, months_pt]
-            p_esrd  = (stage_at_t >= 4).mean()
-            p_prog  = (stage_at_t > np.bincount(trajectories[:,0]).argmax()).mean()
-            most_l  = int(np.bincount(stage_at_t).argmax())
-            c = "#ef4444" if p_esrd > 0.2 else ("#f59e0b" if p_esrd > 0.05 else "#10b981")
+        modified = dict(base)
+        modified["hba1c_pct"]              = t_hba1c
+        modified["fasting_glucose_mgdl"]   = t_glucose
+        modified["log_fasting_glucose_mgdl"] = np.log1p(t_glucose)
+        modified["mean_sbp"]               = float(t_sbp)
+        modified["mean_dbp"]               = float(t_dbp)
+        modified["bmi_kgm2"]               = t_bmi
+        modified["triglycerides_mgdl"]     = t_trig
+        modified["log_triglycerides_mgdl"] = np.log1p(t_trig)
+        modified["hdl_cholesterol_mgdl"]   = t_hdl
+        modified["sedentary_minutes_per_day"]     = t_sedentary
+        modified["log_sedentary_minutes_per_day"] = np.log1p(t_sedentary)
+        modified["current_smoker_status"]  = t_smoker
+
+        with st.spinner("Running GlomeraAI on baseline and target profiles..."):
+            _, X1b, X2b, X3b = build_vector(base, mdl)
+            pred_b, proba_b, p1b, p2b, p3b = run_ensemble(mdl, X1b, X2b, X3b)
+
+            _, X1m, X2m, X3m = build_vector(modified, mdl)
+            pred_m, proba_m, p1m, p2m, p3m = run_ensemble(mdl, X1m, X2m, X3m)
+
+        sev_b = sum(c * proba_b[c] for c in range(N_CLASSES))
+        sev_m = sum(c * proba_m[c] for c in range(N_CLASSES))
+        delta  = sev_m - sev_b
+        risk_b = sum(proba_b[c] for c in range(4, N_CLASSES))
+        risk_m = sum(proba_m[c] for c in range(4, N_CLASSES))
+
+        st.markdown('<p class="sect-hdr">Comparison: Baseline vs Intervention Targets</p>', unsafe_allow_html=True)
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{STAGE_COLORS[pred_b]}">Stage {pred_b}</div><div class="kpi-lbl">Current stage</div></div>', unsafe_allow_html=True)
+        with c2:
+            st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{STAGE_COLORS[pred_m]}">Stage {pred_m}</div><div class="kpi-lbl">Stage at targets</div></div>', unsafe_allow_html=True)
+        with c3:
+            d_col = "#10b981" if delta < 0 else ("#f59e0b" if delta == 0 else "#ef4444")
+            d_sym = "▼" if delta < 0 else ("=" if delta == 0 else "▲")
+            st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{d_col}">{d_sym} {abs(delta):.2f}</div><div class="kpi-lbl">Severity score change</div></div>', unsafe_allow_html=True)
+        with c4:
+            dr_col = "#10b981" if risk_m < risk_b else "#ef4444"
+            st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{dr_col}">{risk_m*100:.0f}%</div><div class="kpi-lbl">Stage 4+ risk at targets</div></div>', unsafe_allow_html=True)
+
+        if delta < -0.3:
+            st.markdown(f"""<div class="rec-block green">
+              <strong>Clinically meaningful risk reduction projected by the model.</strong>
+              Achieving these intervention targets is associated with a severity score reduction
+              of <strong>{abs(delta):.2f} points</strong> and a change in predicted stage from
+              <strong>{STAGE_NAMES[pred_b]}</strong> to <strong>{STAGE_NAMES[pred_m]}</strong>.
+              The model's trained associations suggest these targets are worth prioritising.
+            </div>""", unsafe_allow_html=True)
+        elif delta < 0:
+            st.markdown(f"""<div class="rec-block amber">
+              <strong>Modest risk reduction.</strong> Severity score decreases by {abs(delta):.2f} points.
+              Additional modifications or pharmacological intervention may be needed to achieve
+              a clinically significant stage change.
+            </div>""", unsafe_allow_html=True)
+        elif delta == 0:
+            st.markdown("""<div class="rec-block slate">
+              <strong>No change in model output.</strong> The modified values are similar to baseline.
+              Try more aggressive intervention targets to see model sensitivity.
+            </div>""", unsafe_allow_html=True)
+        else:
+            st.markdown(f"""<div class="rec-block red">
+              <strong>Model predicts higher risk at these targets.</strong>
+              Review the target values — some may be set higher than baseline.
+            </div>""", unsafe_allow_html=True)
+
+        fig_comp, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 4))
+
+        x = np.arange(N_CLASSES)
+        w = 0.38
+        ax1.bar(x - w/2, proba_b * 100, w, label="Baseline",
+                color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=0.6)
+        ax1.bar(x + w/2, proba_m * 100, w, label="At targets",
+                color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=1.0)
+        ax1.set_xticks(x)
+        ax1.set_xticklabels([f"S{c}" for c in range(N_CLASSES)])
+        ax1.set_ylabel("Probability (%)")
+        ax1.set_title("Stage Probability: Baseline vs Intervention Targets", fontsize=10, fontweight="bold")
+        ax1.legend(fontsize=9)
+        ax1.spines[["top","right"]].set_visible(False)
+
+        changed = {f: modified[f] - base[f] for f in [
+            "hba1c_pct","mean_sbp","mean_dbp","bmi_kgm2",
+            "triglycerides_mgdl","hdl_cholesterol_mgdl","sedentary_minutes_per_day"
+        ] if f in base and f in modified and abs(modified[f] - base[f]) > 0.01}
+
+        labels_c = {
+            "hba1c_pct": "HbA1c (%)",
+            "mean_sbp": "Systolic BP (mmHg)",
+            "mean_dbp": "Diastolic BP (mmHg)",
+            "bmi_kgm2": "BMI (kg/m²)",
+            "triglycerides_mgdl": "Triglycerides (mg/dL)",
+            "hdl_cholesterol_mgdl": "HDL Cholesterol (mg/dL)",
+            "sedentary_minutes_per_day": "Sedentary Time (min/day)",
+        }
+
+        if changed:
+            feats  = list(changed.keys())
+            deltas = [changed[f] for f in feats]
+            colors = ["#10b981" if d < 0 else "#ef4444" for d in deltas]
+            ax2.barh([labels_c.get(f, f) for f in feats], deltas,
+                     color=colors, alpha=0.85)
+            ax2.axvline(0, color="#2d4060", lw=1, ls="--")
+            ax2.set_xlabel("Change from baseline")
+            ax2.set_title("Input Changes Applied", fontsize=10, fontweight="bold")
+            ax2.spines[["top","right"]].set_visible(False)
+            for spine in ["left"]:
+                ax2.spines[spine].set_visible(True)
+        else:
+            ax2.text(0.5, 0.5, "No changes from baseline",
+                     ha="center", va="center", fontsize=11, color="#8496b0",
+                     transform=ax2.transAxes)
+            ax2.axis("off")
+
+        plt.tight_layout()
+        st.pyplot(fig_comp, use_container_width=True)
+        plt.close()
+
+        st.markdown('<p class="sect-hdr">Per-Model Response</p>', unsafe_allow_html=True)
+        pm1, pm2, pm3 = st.columns(3)
+        for col, label, pb, pm, color in [
+            (pm1, "M1 Clinical",     p1b[current_pred], p1m[current_pred], "#1a6efc"),
+            (pm2, "M2 Lifestyle",    p2b[current_pred], p2m[current_pred], "#f97316"),
+            (pm3, "M3 Demographics", p3b[current_pred], p3m[current_pred], "#a855f7"),
+        ]:
+            diff = pm - pb
+            diff_col = "#10b981" if diff < 0 else ("#ef4444" if diff > 0 else "#8496b0")
             with col:
-                st.markdown(f"""<div class="kpi-tile">
-                  <div class="kpi-val" style="color:{STAGE_COLORS[most_l]}">Stage {most_l}</div>
-                  <div class="kpi-lbl">Most likely at {months_pt} months</div>
-                  <div style="margin-top:.5rem;font-size:.72rem;color:{c};font-weight:700">
-                    {p_esrd*100:.0f}% risk Stage 4+
+                st.markdown(f"""<div class="glass-card" style="text-align:center">
+                  <div style="font-size:.72rem;color:#8496b0;font-weight:600;
+                       text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">{label}</div>
+                  <div style="font-family:'DM Mono',monospace;font-size:1.1rem;color:{color}">
+                    {pb*100:.0f}% → {pm*100:.0f}%
+                  </div>
+                  <div style="font-size:.75rem;color:{diff_col};margin-top:.3rem;font-weight:700">
+                    {"▼" if diff < 0 else "▲"} {abs(diff)*100:.0f}pp
                   </div>
                 </div>""", unsafe_allow_html=True)
 
-        # Main simulation plot
-        fig_sim, axes_sim = plt.subplots(1, 2, figsize=(13, 5))
-
-        # Left: stacked area
-        bottom = np.zeros(25)
-        for s in range(6):
-            axes_sim[0].fill_between(time_points, bottom, bottom + prob_time[:, s],
-                                     color=STAGE_COLORS[s], alpha=0.82,
-                                     label=STAGE_NAMES[s].split("—")[0].strip())
-            bottom += prob_time[:, s]
-        axes_sim[0].set_xlim(0, 24)
-        axes_sim[0].set_xticks([0, 6, 12, 18, 24])
-        axes_sim[0].set_xticklabels(["Now", "6 mo", "12 mo", "18 mo", "24 mo"])
-        axes_sim[0].set_ylabel("Probability of being at each stage")
-        axes_sim[0].set_title("Stage Distribution Over Time", fontsize=11, fontweight="bold")
-        axes_sim[0].legend(fontsize=8, loc="upper left")
-        axes_sim[0].spines[["top","right"]].set_visible(False)
-
-        # Right: Stage 4+ risk over time
-        p4plus_over_time = prob_time[:, 4] + prob_time[:, 5]
-        axes_sim[1].plot(time_points, p4plus_over_time * 100,
-                         color="#ef4444", lw=2.5, marker="o", markersize=4)
-        axes_sim[1].fill_between(time_points, 0, p4plus_over_time * 100, alpha=0.12, color="#ef4444")
-        axes_sim[1].axhline(20, color="#f59e0b", lw=1, ls="--", alpha=0.7, label="20% threshold")
-        axes_sim[1].set_xlim(0, 24)
-        axes_sim[1].set_xticks([0, 6, 12, 18, 24])
-        axes_sim[1].set_xticklabels(["Now", "6 mo", "12 mo", "18 mo", "24 mo"])
-        axes_sim[1].set_ylabel("Probability (%)")
-        axes_sim[1].set_title("Risk of Stage 4+ (Severe / Failure)", fontsize=11, fontweight="bold")
-        axes_sim[1].legend(fontsize=8)
-        axes_sim[1].spines[["top","right"]].set_visible(False)
-
-        plt.tight_layout()
-        st.pyplot(fig_sim, use_container_width=True); plt.close()
-
-        # Intervention comparison
-        st.markdown('<p class="sect-hdr">Intervention Comparison — 12-Month Stage 4+ Risk</p>', unsafe_allow_html=True)
-        comp_results = {}
-        with st.spinner("Comparing all intervention scenarios..."):
-            for interv, factor_i in INTERVENTIONS.items():
-                T_i = T_ANNUAL.copy()
-                for ii in range(6):
-                    for jj in range(6):
-                        if jj > ii:
-                            T_i[ii, jj] *= factor_i
-                    T_i[ii] = T_i[ii] / T_i[ii].sum()
-                try:
-                    T_mi = fractional_matrix_power(T_i, 1/12)
-                    T_mi = np.clip(np.real(T_mi), 0, 1)
-                    T_mi = T_mi / T_mi.sum(axis=1, keepdims=True)
-                except Exception:
-                    T_mi = T_i
-                trajs_i = np.zeros((1000, 13), dtype=np.int8)
-                init_i  = rng.choice(6, size=1000, p=proba_norm)
-                trajs_i[:, 0] = init_i
-                for t in range(1, 13):
-                    for sim in range(1000):
-                        cur = trajs_i[sim, t-1]
-                        trajs_i[sim, t] = rng.choice(6, p=T_mi[cur])
-                comp_results[interv] = (trajs_i[:, 12] >= 4).mean() * 100
-
-        comp_sorted = sorted(comp_results.items(), key=lambda x: x[1])
-        fig_comp2, ax_comp2 = plt.subplots(figsize=(10, 3.5))
-        colors_c = ["#10b981" if i == 0 else ("#ef4444" if i == len(comp_sorted)-1
-                    else "#1a6efc") for i in range(len(comp_sorted))]
-        bars_c = ax_comp2.barh([x[0] for x in comp_sorted],
-                               [x[1] for x in comp_sorted],
-                               color=colors_c, alpha=0.85)
-        for bar in bars_c:
-            w = bar.get_width()
-            ax_comp2.text(w + 0.3, bar.get_y() + bar.get_height()/2,
-                          f"{w:.1f}%", va="center", fontsize=9, fontweight="600")
-        ax_comp2.set_xlabel("Stage 4+ risk at 12 months (%)")
-        ax_comp2.set_title("Impact of Different Interventions", fontsize=11, fontweight="bold")
-        ax_comp2.spines[["top","right"]].set_visible(False)
-        plt.tight_layout()
-        st.pyplot(fig_comp2, use_container_width=True); plt.close()
-
     st.markdown("""
     <div class="disclaimer">
-      <strong>⚠ Simulation Disclaimer:</strong> This is a rule-based clinical simulation using
-      published KDIGO population-level stage-transition rates (KDIGO 2024 Clinical Practice Guidelines).
-      It is <strong>not</strong> a trained machine learning model and does <strong>not</strong>
-      predict individual patient outcomes. The simulation estimates the probability distribution
-      of future stages based on known population-level disease progression patterns. Intervention
-      reduction factors are derived from published randomised controlled trial data. All outputs
-      require review by a qualified nephrologist or diabetologist before informing any clinical
-      decision. GlomeraAI · NHANES 2015–2020 · n=2,627 diabetic adults.
+      <strong>What this tool shows:</strong> Each result is a real prediction from the trained
+      GlomeraAI ensemble re-run with modified input values. This is a sensitivity analysis — it
+      shows the model's response to hypothetical input changes, not a prediction of what will
+      clinically happen to this patient over time. GlomeraAI was trained on cross-sectional
+      NHANES 2015–2020 data and cannot model longitudinal disease trajectories. All outputs
+      require review by a qualified clinician before informing any clinical decision.
     </div>""", unsafe_allow_html=True)
 
-
-# ══════════════════════════════════════════════════════════════════════════════
-# PAGE 3 — Demo Patients (NBQSA Presentation Page)
+# PAGE 3 — Demo Patients
 # Six pre-loaded patient profiles covering all KDIGO stages 0–5
-# ══════════════════════════════════════════════════════════════════════════════
+
 elif st.session_state.page == 3:
 
     st.markdown("""
@@ -1675,14 +1789,14 @@ elif st.session_state.page == 3:
             "clinical_note": "GFR beginning to decline with persistent albuminuria. HbA1c poorly controlled at 9.2%. Nephrology referral indicated. Demonstrates detection at the last stage before moderate damage.",
             "data": {
                 "mean_sbp": 145.0, "mean_dbp": 88.0,
-                "serum_creatinine_mgdl": 1.35, "log_serum_creatinine_mgdl": np.log1p(1.35),
+                "serum_creatinine_mgdl": 1.56, "log_serum_creatinine_mgdl": np.log1p(1.56),
                 "urine_albumin_ugl": 385000.0, "log_urine_albumin_ugl": np.log1p(385000.0),
                 "urine_creatinine_mgdl": 110.0, "uacr_mgg": 350.0,
                 "log_uacr": np.log10(350.0),
                 "hba1c_pct": 9.2, "fasting_glucose_mgdl": 188.0,
                 "log_fasting_glucose_mgdl": np.log1p(188.0),
                 "insulin_uiml": 22.0, "log_insulin_uiml": np.log1p(22.0),
-                "bun_mgdl": 20.0, "log_bun_mgdl": np.log1p(20.0),
+                "bun_mgdl": 22.0, "log_bun_mgdl": np.log1p(22.0),
                 "uric_acid_mgdl": 6.5, "hemoglobin_gdl": 12.8,
                 "hematocrit_pct": 38.0, "serum_albumin_gdl": 3.9,
                 "crp_mgL": 5.8, "log_crp_mgL": np.log1p(5.8),
@@ -1711,15 +1825,15 @@ elif st.session_state.page == 3:
             "clinical_note": "Established CKD Stage 3 with significant albuminuria and rising creatinine. Anaemia developing. Urgent nephrology co-management required. Demonstrates the system's urgency flagging.",
             "data": {
                 "mean_sbp": 152.0, "mean_dbp": 92.0,
-                "serum_creatinine_mgdl": 1.9,  "log_serum_creatinine_mgdl": np.log1p(1.9),
-                "urine_albumin_ugl": 180000.0, "log_urine_albumin_ugl": np.log1p(180000.0),
-                "urine_creatinine_mgdl": 90.0, "uacr_mgg": 200.0,
-                "log_uacr": np.log10(200.0),
+                "serum_creatinine_mgdl": 1.55, "log_serum_creatinine_mgdl": np.log1p(1.55),
+                "urine_albumin_ugl": 90000.0, "log_urine_albumin_ugl": np.log1p(90000.0),
+                "urine_creatinine_mgdl": 90.0, "uacr_mgg": 100.0,
+                "log_uacr": np.log10(100.0),
                 "hba1c_pct": 9.8, "fasting_glucose_mgdl": 210.0,
                 "log_fasting_glucose_mgdl": np.log1p(210.0),
                 "insulin_uiml": 38.0, "log_insulin_uiml": np.log1p(38.0),
-                "bun_mgdl": 28.0, "log_bun_mgdl": np.log1p(28.0),
-                "uric_acid_mgdl": 7.8, "hemoglobin_gdl": 11.2,
+                "bun_mgdl": 22.0, "log_bun_mgdl": np.log1p(22.0),
+                "uric_acid_mgdl": 7.2, "hemoglobin_gdl": 11.8,
                 "hematocrit_pct": 33.5, "serum_albumin_gdl": 3.5,
                 "crp_mgL": 9.2, "log_crp_mgL": np.log1p(9.2),
                 "total_cholesterol_mgdl": 240.0, "ldl_cholesterol_mgdl": 162.0,
@@ -1747,15 +1861,15 @@ elif st.session_state.page == 3:
             "clinical_note": "Near end-stage renal disease. Severe anaemia, markedly elevated creatinine and BUN. Dialysis planning underway. Demonstrates the system's emergency flagging and referral pathway.",
             "data": {
                 "mean_sbp": 165.0, "mean_dbp": 98.0,
-                "serum_creatinine_mgdl": 3.4,  "log_serum_creatinine_mgdl": np.log1p(3.4),
-                "urine_albumin_ugl": 375000.0, "log_urine_albumin_ugl": np.log1p(375000.0),
-                "urine_creatinine_mgdl": 75.0, "uacr_mgg": 500.0,
-                "log_uacr": np.log10(500.0),
+                "serum_creatinine_mgdl": 2.6,  "log_serum_creatinine_mgdl": np.log1p(2.6),
+                "urine_albumin_ugl": 300000.0, "log_urine_albumin_ugl": np.log1p(300000.0),
+                "urine_creatinine_mgdl": 75.0, "uacr_mgg": 400.0,
+                "log_uacr": np.log10(400.0),
                 "hba1c_pct": 10.5, "fasting_glucose_mgdl": 240.0,
                 "log_fasting_glucose_mgdl": np.log1p(240.0),
                 "insulin_uiml": 55.0, "log_insulin_uiml": np.log1p(55.0),
-                "bun_mgdl": 48.0, "log_bun_mgdl": np.log1p(48.0),
-                "uric_acid_mgdl": 9.2, "hemoglobin_gdl": 9.4,
+                "bun_mgdl": 38.0, "log_bun_mgdl": np.log1p(38.0),
+                "uric_acid_mgdl": 8.5, "hemoglobin_gdl": 10.2,
                 "hematocrit_pct": 28.0, "serum_albumin_gdl": 3.1,
                 "crp_mgL": 18.5, "log_crp_mgL": np.log1p(18.5),
                 "total_cholesterol_mgdl": 195.0, "ldl_cholesterol_mgdl": 110.0,
@@ -1783,15 +1897,15 @@ elif st.session_state.page == 3:
             "clinical_note": "End-stage renal disease requiring renal replacement therapy. Severe anaemia, critical electrolyte imbalances, profound albuminuria. Demonstrates complete staging capability across all 6 classes.",
             "data": {
                 "mean_sbp": 178.0, "mean_dbp": 104.0,
-                "serum_creatinine_mgdl": 6.8,  "log_serum_creatinine_mgdl": np.log1p(6.8),
-                "urine_albumin_ugl": 440000.0, "log_urine_albumin_ugl": np.log1p(440000.0),
-                "urine_creatinine_mgdl": 55.0, "uacr_mgg": 800.0,
-                "log_uacr": np.log10(800.0),
+                "serum_creatinine_mgdl": 5.0,  "log_serum_creatinine_mgdl": np.log1p(5.0),
+                "urine_albumin_ugl": 385000.0, "log_urine_albumin_ugl": np.log1p(385000.0),
+                "urine_creatinine_mgdl": 55.0, "uacr_mgg": 700.0,
+                "log_uacr": np.log10(700.0),
                 "hba1c_pct": 11.8, "fasting_glucose_mgdl": 290.0,
                 "log_fasting_glucose_mgdl": np.log1p(290.0),
                 "insulin_uiml": 72.0, "log_insulin_uiml": np.log1p(72.0),
-                "bun_mgdl": 82.0, "log_bun_mgdl": np.log1p(82.0),
-                "uric_acid_mgdl": 11.5, "hemoglobin_gdl": 7.8,
+                "bun_mgdl": 72.0, "log_bun_mgdl": np.log1p(72.0),
+                "uric_acid_mgdl": 10.8, "hemoglobin_gdl": 8.2,
                 "hematocrit_pct": 23.5, "serum_albumin_gdl": 2.6,
                 "crp_mgL": 32.0, "log_crp_mgL": np.log1p(32.0),
                 "total_cholesterol_mgdl": 168.0, "ldl_cholesterol_mgdl": 88.0,
