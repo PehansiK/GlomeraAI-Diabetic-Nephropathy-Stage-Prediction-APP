@@ -535,7 +535,7 @@ st.markdown("""
     <p class="platform-name">GlomeraAI</p>
     <p class="platform-sub">CLINICAL INTELLIGENCE PLATFORM &nbsp;·&nbsp; KDIGO 2024 · NHANES-VALIDATED · FAIRNESS-AUDITED</p>
   </div>
-  <div class="platform-badge">AUC 0.961 · ICTer 2026</div>
+  <div class="platform-badge">AUC 0.961</div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -558,6 +558,7 @@ with st.sidebar:
         0: ("🩺", "Patient Assessment"),
         1: ("📈", "HbA1c What-If"),
         2: ("🔮", "Progression Simulation"),
+        3: ("🎯", "Demo Patients"),
     }
 
     for pg, (icon, label) in nav.items():
@@ -1551,3 +1552,436 @@ elif st.session_state.page == 2:
       require review by a qualified nephrologist or diabetologist before informing any clinical
       decision. GlomeraAI v1.0 · ICTer 2026 · NHANES 2015–2020 · n=2,627.
     </div>""", unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# PAGE 3 — Demo Patients (NBQSA Presentation Page)
+# Six pre-loaded patient profiles covering all KDIGO stages 0–5
+# ══════════════════════════════════════════════════════════════════════════════
+elif st.session_state.page == 3:
+
+    st.markdown("""
+    <div style="margin-bottom:1.5rem">
+      <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:800;color:#f0f4ff;margin-bottom:.3rem">
+        Clinical Demo Profiles
+      </div>
+      <div style="font-size:.82rem;color:#8496b0;line-height:1.7">
+        Six representative patient profiles covering every KDIGO stage.
+        Select a profile to run the full GlomeraAI assessment instantly —
+        no manual data entry required.
+      </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── Six representative patient profiles ────────────────────────────────────
+    DEMO_PATIENTS = {
+        "Stage 0 — Priya, 42F, No DKD": {
+            "label": "Stage 0 — No DKD",
+            "color": "#10b981",
+            "summary": "42-year-old female, well-controlled T2DM, routine monitoring",
+            "clinical_note": "HbA1c well-controlled. No proteinuria. Kidney function normal. Low progression risk. Demonstrates the system's ability to correctly reassure low-risk patients.",
+            "data": {
+                "mean_sbp": 118.0, "mean_dbp": 74.0,
+                "serum_creatinine_mgdl": 0.7, "log_serum_creatinine_mgdl": np.log1p(0.7),
+                "urine_albumin_ugl": 8.0,   "log_urine_albumin_ugl": np.log1p(8.0),
+                "urine_creatinine_mgdl": 140.0, "uacr_mgg": 0.057,
+                "log_uacr": np.log10(0.057),
+                "hba1c_pct": 6.4, "fasting_glucose_mgdl": 112.0,
+                "log_fasting_glucose_mgdl": np.log1p(112.0),
+                "insulin_uiml": 8.0,  "log_insulin_uiml": np.log1p(8.0),
+                "bun_mgdl": 12.0, "log_bun_mgdl": np.log1p(12.0),
+                "uric_acid_mgdl": 4.2, "hemoglobin_gdl": 13.8,
+                "hematocrit_pct": 41.0, "serum_albumin_gdl": 4.3,
+                "crp_mgL": 1.2,   "log_crp_mgL": np.log1p(1.2),
+                "total_cholesterol_mgdl": 175.0, "ldl_cholesterol_mgdl": 98.0,
+                "hdl_cholesterol_mgdl": 58.0, "triglycerides_mgdl": 95.0,
+                "log_triglycerides_mgdl": np.log1p(95.0), "bmi_kgm2": 24.2,
+                "diabetes_diagnosed": 1, "insulin_use": 0, "oral_diabetes_meds": 1,
+                "hypertension_diagnosed": 0, "bp_medication": 0, "statin_use": 0,
+                "current_smoker_status": 0, "avg_alcohol_drinks_per_day": 0.1,
+                "log_avg_alcohol_drinks_per_day": np.log1p(0.1),
+                "vigorous_leisure_activity": 1, "sedentary_minutes_per_day": 180,
+                "log_sedentary_minutes_per_day": np.log1p(180), "sleep_hours_weekday": 7.5,
+                "kidney_disease_history": 0, "kidney_stone_history": 0, "nocturia": 0,
+                "sodium_mg_day": 2100.0, "protein_g_day": 68.0,
+                "potassium_mg_day": 3200.0, "phosphorus_mg_day": 900.0,
+                "age_years": 42, "sex_code": 1, "race_ethnicity_code": 6,
+                "education_level": 5, "household_income_cat": 10,
+                "food_security_score": 15.0, "coronary_heart_disease": 0,
+                "heart_attack": 0, "stroke_ever": 0, "family_hx_diabetes": 1,
+            },
+        },
+        "Stage 1 — Malik, 51M, Microalbuminuria": {
+            "label": "Stage 1 — Microalbuminuria",
+            "color": "#f59e0b",
+            "summary": "51-year-old male, early DKD, elevated urine albumin",
+            "clinical_note": "Urine albumin elevated but GFR preserved. HbA1c suboptimal at 8.1%. Early intervention with ACE-I and tighter glycaemic control could halt progression. Demonstrates early detection value.",
+            "data": {
+                "mean_sbp": 134.0, "mean_dbp": 82.0,
+                "serum_creatinine_mgdl": 0.95, "log_serum_creatinine_mgdl": np.log1p(0.95),
+                "urine_albumin_ugl": 68.0,  "log_urine_albumin_ugl": np.log1p(68.0),
+                "urine_creatinine_mgdl": 110.0, "uacr_mgg": 0.618,
+                "log_uacr": np.log10(0.618),
+                "hba1c_pct": 8.1, "fasting_glucose_mgdl": 162.0,
+                "log_fasting_glucose_mgdl": np.log1p(162.0),
+                "insulin_uiml": 14.0, "log_insulin_uiml": np.log1p(14.0),
+                "bun_mgdl": 15.0, "log_bun_mgdl": np.log1p(15.0),
+                "uric_acid_mgdl": 5.8, "hemoglobin_gdl": 13.2,
+                "hematocrit_pct": 39.5, "serum_albumin_gdl": 4.1,
+                "crp_mgL": 3.4, "log_crp_mgL": np.log1p(3.4),
+                "total_cholesterol_mgdl": 210.0, "ldl_cholesterol_mgdl": 130.0,
+                "hdl_cholesterol_mgdl": 42.0, "triglycerides_mgdl": 175.0,
+                "log_triglycerides_mgdl": np.log1p(175.0), "bmi_kgm2": 28.8,
+                "diabetes_diagnosed": 1, "insulin_use": 0, "oral_diabetes_meds": 1,
+                "hypertension_diagnosed": 1, "bp_medication": 1, "statin_use": 1,
+                "current_smoker_status": 0, "avg_alcohol_drinks_per_day": 0.5,
+                "log_avg_alcohol_drinks_per_day": np.log1p(0.5),
+                "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 320,
+                "log_sedentary_minutes_per_day": np.log1p(320), "sleep_hours_weekday": 6.5,
+                "kidney_disease_history": 0, "kidney_stone_history": 0, "nocturia": 1,
+                "sodium_mg_day": 3100.0, "protein_g_day": 95.0,
+                "potassium_mg_day": 2600.0, "phosphorus_mg_day": 1200.0,
+                "age_years": 51, "sex_code": 0, "race_ethnicity_code": 4,
+                "education_level": 3, "household_income_cat": 7,
+                "food_security_score": 11.0, "coronary_heart_disease": 0,
+                "heart_attack": 0, "stroke_ever": 0, "family_hx_diabetes": 1,
+            },
+        },
+        "Stage 2 — Anura, 56M, Mild GFR Decrease": {
+            "label": "Stage 2 — Mild GFR Decrease",
+            "color": "#f97316",
+            "summary": "56-year-old male, hypertension, declining filtration",
+            "clinical_note": "GFR beginning to decline with persistent albuminuria. HbA1c poorly controlled at 9.2%. Nephrology referral indicated. Demonstrates detection at the last stage before moderate damage.",
+            "data": {
+                "mean_sbp": 145.0, "mean_dbp": 88.0,
+                "serum_creatinine_mgdl": 1.35, "log_serum_creatinine_mgdl": np.log1p(1.35),
+                "urine_albumin_ugl": 145.0, "log_urine_albumin_ugl": np.log1p(145.0),
+                "urine_creatinine_mgdl": 100.0, "uacr_mgg": 1.45,
+                "log_uacr": np.log10(1.45),
+                "hba1c_pct": 9.2, "fasting_glucose_mgdl": 188.0,
+                "log_fasting_glucose_mgdl": np.log1p(188.0),
+                "insulin_uiml": 22.0, "log_insulin_uiml": np.log1p(22.0),
+                "bun_mgdl": 20.0, "log_bun_mgdl": np.log1p(20.0),
+                "uric_acid_mgdl": 6.5, "hemoglobin_gdl": 12.8,
+                "hematocrit_pct": 38.0, "serum_albumin_gdl": 3.9,
+                "crp_mgL": 5.8, "log_crp_mgL": np.log1p(5.8),
+                "total_cholesterol_mgdl": 225.0, "ldl_cholesterol_mgdl": 148.0,
+                "hdl_cholesterol_mgdl": 38.0, "triglycerides_mgdl": 220.0,
+                "log_triglycerides_mgdl": np.log1p(220.0), "bmi_kgm2": 31.5,
+                "diabetes_diagnosed": 1, "insulin_use": 0, "oral_diabetes_meds": 1,
+                "hypertension_diagnosed": 1, "bp_medication": 1, "statin_use": 1,
+                "current_smoker_status": 1, "avg_alcohol_drinks_per_day": 1.2,
+                "log_avg_alcohol_drinks_per_day": np.log1p(1.2),
+                "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 420,
+                "log_sedentary_minutes_per_day": np.log1p(420), "sleep_hours_weekday": 6.0,
+                "kidney_disease_history": 1, "kidney_stone_history": 0, "nocturia": 1,
+                "sodium_mg_day": 3600.0, "protein_g_day": 105.0,
+                "potassium_mg_day": 2400.0, "phosphorus_mg_day": 1350.0,
+                "age_years": 56, "sex_code": 0, "race_ethnicity_code": 1,
+                "education_level": 2, "household_income_cat": 5,
+                "food_security_score": 8.0, "coronary_heart_disease": 0,
+                "heart_attack": 0, "stroke_ever": 0, "family_hx_diabetes": 0,
+            },
+        },
+        "Stage 3 — Nirmala, 63F, Moderate GFR Decrease": {
+            "label": "Stage 3 — Moderate GFR Decrease",
+            "color": "#ef4444",
+            "summary": "63-year-old female, significant renal impairment, multimorbidity",
+            "clinical_note": "Established CKD Stage 3 with significant albuminuria and rising creatinine. Anaemia developing. Urgent nephrology co-management required. Demonstrates the system's urgency flagging.",
+            "data": {
+                "mean_sbp": 152.0, "mean_dbp": 92.0,
+                "serum_creatinine_mgdl": 1.9,  "log_serum_creatinine_mgdl": np.log1p(1.9),
+                "urine_albumin_ugl": 380.0, "log_urine_albumin_ugl": np.log1p(380.0),
+                "urine_creatinine_mgdl": 90.0,  "uacr_mgg": 4.22,
+                "log_uacr": np.log10(4.22),
+                "hba1c_pct": 9.8, "fasting_glucose_mgdl": 210.0,
+                "log_fasting_glucose_mgdl": np.log1p(210.0),
+                "insulin_uiml": 38.0, "log_insulin_uiml": np.log1p(38.0),
+                "bun_mgdl": 28.0, "log_bun_mgdl": np.log1p(28.0),
+                "uric_acid_mgdl": 7.8, "hemoglobin_gdl": 11.2,
+                "hematocrit_pct": 33.5, "serum_albumin_gdl": 3.5,
+                "crp_mgL": 9.2, "log_crp_mgL": np.log1p(9.2),
+                "total_cholesterol_mgdl": 240.0, "ldl_cholesterol_mgdl": 162.0,
+                "hdl_cholesterol_mgdl": 32.0, "triglycerides_mgdl": 310.0,
+                "log_triglycerides_mgdl": np.log1p(310.0), "bmi_kgm2": 33.8,
+                "diabetes_diagnosed": 1, "insulin_use": 1, "oral_diabetes_meds": 0,
+                "hypertension_diagnosed": 1, "bp_medication": 1, "statin_use": 1,
+                "current_smoker_status": 0, "avg_alcohol_drinks_per_day": 0.2,
+                "log_avg_alcohol_drinks_per_day": np.log1p(0.2),
+                "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 540,
+                "log_sedentary_minutes_per_day": np.log1p(540), "sleep_hours_weekday": 5.5,
+                "kidney_disease_history": 1, "kidney_stone_history": 1, "nocturia": 1,
+                "sodium_mg_day": 3200.0, "protein_g_day": 88.0,
+                "potassium_mg_day": 2200.0, "phosphorus_mg_day": 1150.0,
+                "age_years": 63, "sex_code": 1, "race_ethnicity_code": 4,
+                "education_level": 2, "household_income_cat": 3,
+                "food_security_score": 6.0, "coronary_heart_disease": 1,
+                "heart_attack": 0, "stroke_ever": 0, "family_hx_diabetes": 1,
+            },
+        },
+        "Stage 4 — Rajan, 69M, Severe GFR Decrease": {
+            "label": "Stage 4 — Severe GFR Decrease",
+            "color": "#a855f7",
+            "summary": "69-year-old male, advanced DKD, approaching dialysis threshold",
+            "clinical_note": "Near end-stage renal disease. Severe anaemia, markedly elevated creatinine and BUN. Dialysis planning underway. Demonstrates the system's emergency flagging and referral pathway.",
+            "data": {
+                "mean_sbp": 165.0, "mean_dbp": 98.0,
+                "serum_creatinine_mgdl": 3.4,  "log_serum_creatinine_mgdl": np.log1p(3.4),
+                "urine_albumin_ugl": 820.0, "log_urine_albumin_ugl": np.log1p(820.0),
+                "urine_creatinine_mgdl": 75.0,  "uacr_mgg": 10.93,
+                "log_uacr": np.log10(10.93),
+                "hba1c_pct": 10.5, "fasting_glucose_mgdl": 240.0,
+                "log_fasting_glucose_mgdl": np.log1p(240.0),
+                "insulin_uiml": 55.0, "log_insulin_uiml": np.log1p(55.0),
+                "bun_mgdl": 48.0, "log_bun_mgdl": np.log1p(48.0),
+                "uric_acid_mgdl": 9.2, "hemoglobin_gdl": 9.4,
+                "hematocrit_pct": 28.0, "serum_albumin_gdl": 3.1,
+                "crp_mgL": 18.5, "log_crp_mgL": np.log1p(18.5),
+                "total_cholesterol_mgdl": 195.0, "ldl_cholesterol_mgdl": 110.0,
+                "hdl_cholesterol_mgdl": 28.0, "triglycerides_mgdl": 280.0,
+                "log_triglycerides_mgdl": np.log1p(280.0), "bmi_kgm2": 26.5,
+                "diabetes_diagnosed": 1, "insulin_use": 1, "oral_diabetes_meds": 0,
+                "hypertension_diagnosed": 1, "bp_medication": 1, "statin_use": 1,
+                "current_smoker_status": 2, "avg_alcohol_drinks_per_day": 0.0,
+                "log_avg_alcohol_drinks_per_day": 0.0,
+                "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 660,
+                "log_sedentary_minutes_per_day": np.log1p(660), "sleep_hours_weekday": 5.0,
+                "kidney_disease_history": 1, "kidney_stone_history": 0, "nocturia": 1,
+                "sodium_mg_day": 2800.0, "protein_g_day": 55.0,
+                "potassium_mg_day": 1800.0, "phosphorus_mg_day": 800.0,
+                "age_years": 69, "sex_code": 0, "race_ethnicity_code": 3,
+                "education_level": 3, "household_income_cat": 4,
+                "food_security_score": 7.0, "coronary_heart_disease": 1,
+                "heart_attack": 1, "stroke_ever": 0, "family_hx_diabetes": 1,
+            },
+        },
+        "Stage 5 — Kamala, 72F, Kidney Failure": {
+            "label": "Stage 5 — Kidney Failure",
+            "color": "#94a3b8",
+            "summary": "72-year-old female, ESRD, on dialysis pathway",
+            "clinical_note": "End-stage renal disease requiring renal replacement therapy. Severe anaemia, critical electrolyte imbalances, profound albuminuria. Demonstrates complete staging capability across all 6 classes.",
+            "data": {
+                "mean_sbp": 178.0, "mean_dbp": 104.0,
+                "serum_creatinine_mgdl": 6.8,  "log_serum_creatinine_mgdl": np.log1p(6.8),
+                "urine_albumin_ugl": 1850.0, "log_urine_albumin_ugl": np.log1p(1850.0),
+                "urine_creatinine_mgdl": 55.0,  "uacr_mgg": 33.64,
+                "log_uacr": np.log10(33.64),
+                "hba1c_pct": 11.8, "fasting_glucose_mgdl": 290.0,
+                "log_fasting_glucose_mgdl": np.log1p(290.0),
+                "insulin_uiml": 72.0, "log_insulin_uiml": np.log1p(72.0),
+                "bun_mgdl": 82.0, "log_bun_mgdl": np.log1p(82.0),
+                "uric_acid_mgdl": 11.5, "hemoglobin_gdl": 7.8,
+                "hematocrit_pct": 23.5, "serum_albumin_gdl": 2.6,
+                "crp_mgL": 32.0, "log_crp_mgL": np.log1p(32.0),
+                "total_cholesterol_mgdl": 168.0, "ldl_cholesterol_mgdl": 88.0,
+                "hdl_cholesterol_mgdl": 22.0, "triglycerides_mgdl": 320.0,
+                "log_triglycerides_mgdl": np.log1p(320.0), "bmi_kgm2": 22.1,
+                "diabetes_diagnosed": 1, "insulin_use": 1, "oral_diabetes_meds": 0,
+                "hypertension_diagnosed": 1, "bp_medication": 1, "statin_use": 0,
+                "current_smoker_status": 0, "avg_alcohol_drinks_per_day": 0.0,
+                "log_avg_alcohol_drinks_per_day": 0.0,
+                "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 900,
+                "log_sedentary_minutes_per_day": np.log1p(900), "sleep_hours_weekday": 4.5,
+                "kidney_disease_history": 1, "kidney_stone_history": 1, "nocturia": 1,
+                "sodium_mg_day": 1800.0, "protein_g_day": 45.0,
+                "potassium_mg_day": 1400.0, "phosphorus_mg_day": 600.0,
+                "age_years": 72, "sex_code": 1, "race_ethnicity_code": 2,
+                "education_level": 1, "household_income_cat": 2,
+                "food_security_score": 4.0, "coronary_heart_disease": 1,
+                "heart_attack": 1, "stroke_ever": 1, "family_hx_diabetes": 1,
+            },
+        },
+    }
+
+    # ── Stage selector cards ───────────────────────────────────────────────────
+    st.markdown('<p class="sect-hdr">Select a Patient Profile</p>', unsafe_allow_html=True)
+
+    col1, col2, col3 = st.columns(3)
+    cols_cycle = [col1, col2, col3, col1, col2, col3]
+
+    for col, (name, profile) in zip(cols_cycle, DEMO_PATIENTS.items()):
+        with col:
+            color = profile["color"]
+            st.markdown(f"""
+            <div style="background:rgba(255,255,255,.03);border:1px solid {color}40;
+                 border-left:4px solid {color};border-radius:12px;
+                 padding:.9rem 1.1rem;margin-bottom:.5rem">
+              <div style="font-size:.7rem;font-weight:700;color:{color};
+                   text-transform:uppercase;letter-spacing:.1em;margin-bottom:.3rem">
+                {profile['label']}
+              </div>
+              <div style="font-size:.83rem;font-weight:600;color:#f0f4ff;margin-bottom:.3rem">
+                {name.split('—')[1].strip() if '—' in name else name}
+              </div>
+              <div style="font-size:.76rem;color:#8496b0;line-height:1.5">
+                {profile['summary']}
+              </div>
+            </div>
+            """, unsafe_allow_html=True)
+            if st.button(f"Run Assessment", key=f"demo_{name}", use_container_width=True):
+                st.session_state["selected_demo"] = name
+                st.rerun()
+
+    # ── Run selected demo ──────────────────────────────────────────────────────
+    selected = st.session_state.get("selected_demo")
+
+    if selected and selected in DEMO_PATIENTS:
+        profile = DEMO_PATIENTS[selected]
+        patient_data = profile["data"]
+
+        st.divider()
+        st.markdown(f"""
+        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:800;
+             color:{profile['color']};margin-bottom:.3rem">
+          {profile['label']} — Assessment Running
+        </div>
+        <div style="font-size:.82rem;color:#8496b0;margin-bottom:1rem">
+          {profile['clinical_note']}
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.spinner("Running full GlomeraAI assessment..."):
+            df_imp, X1, X2, X3 = build_vector(patient_data, mdl)
+            pred, proba, p1, p2, p3 = run_ensemble(mdl, X1, X2, X3)
+            rf_sv, xgb_sv, lr_sv = get_shap(mdl, X1, X2, X3)
+
+        rec         = STAGE_RECS[pred]
+        stage_color = STAGE_COLORS[pred]
+        prog_score  = sum(c * proba[c] for c in range(N_CLASSES))
+        entropy_val = scipy_entropy(proba)
+        uncertainty = entropy_val / scipy_entropy([1/N_CLASSES]*N_CLASSES)
+        conf_label  = ("High confidence" if uncertainty < 0.33 else
+                       "Moderate" if uncertainty < 0.66 else "Low — review carefully")
+        conf_color  = ("#10b981" if uncertainty < 0.33 else
+                       "#f59e0b" if uncertainty < 0.66 else "#ef4444")
+        forward_p   = float(sum(proba[c] for c in range(pred+1, N_CLASSES)))
+
+        # Store for What-If page
+        st.session_state["last_pred"]   = pred
+        st.session_state["last_proba"]  = proba
+        st.session_state["last_hba1c"]  = patient_data.get("hba1c_pct", 7.2)
+        st.session_state["patient"]     = patient_data
+
+        # Result hero
+        st.markdown(f"""
+        <div class="stage-result-card" style="color:{stage_color};
+             background:rgba(11,20,38,0.6);border-color:{stage_color}40">
+          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;
+               letter-spacing:.14em;color:{stage_color};margin-bottom:.5rem">
+            GlomeraAI ASSESSMENT RESULT
+          </div>
+          <div style="font-size:2rem;font-weight:800;letter-spacing:-.03em;color:{stage_color}">
+            {STAGE_NAMES[pred]}
+          </div>
+          <div style="font-size:.88rem;color:#8496b0;margin:.5rem 0">{rec['headline']}</div>
+          <div>{urgency_chip(rec['urgency'])}</div>
+        </div>""", unsafe_allow_html=True)
+
+        c1, c2, c3, c4 = st.columns(4)
+        with c1: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{stage_color}">Stage {pred}</div><div class="kpi-lbl">KDIGO Stage</div></div>', unsafe_allow_html=True)
+        with c2: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:#f0f4ff">{proba[pred]*100:.0f}%</div><div class="kpi-lbl">Confidence</div></div>', unsafe_allow_html=True)
+        with c3: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{conf_color};font-size:1.1rem;padding-top:.4rem">{conf_label}</div><div class="kpi-lbl">AI Certainty</div></div>', unsafe_allow_html=True)
+        with c4: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:#f0f4ff">{prog_score:.2f}/5</div><div class="kpi-lbl">Severity Score</div></div>', unsafe_allow_html=True)
+
+        # Plain-language narrative
+        shap_rf = dict(zip(X1.columns.tolist(), rf_sv[0, :, pred]))
+        top3 = sorted(shap_rf.items(), key=lambda x: abs(x[1]), reverse=True)[:3]
+        narrative_parts = []
+        for feat, sv in top3:
+            name_f = display_name(feat)
+            raw    = display_val(feat, float(df_imp[feat].iloc[0]))
+            direction = "elevated" if sv > 0 else "lower than expected"
+            desc = CLINICAL_CONTEXT.get(feat, ("", None, ""))[2]
+            narrative_parts.append(f"<strong>{name_f}</strong> ({raw:.2f}) is {direction} — {desc}")
+        st.markdown(f"""<div class="rec-block teal">
+          <strong>Why this prediction?</strong><br>
+          {';&nbsp; '.join(narrative_parts)}.
+        </div>""", unsafe_allow_html=True)
+
+        # Recommendations
+        st.markdown(f"""<div class="rec-block {rec['color']}">
+          <strong>Recommended Clinical Actions</strong>
+          <ul style="margin:.5rem 0 0;padding-left:1.2rem">
+            {''.join(f"<li style='margin:.3rem 0'>{a}</li>" for a in rec['actions'])}
+          </ul>
+        </div>""", unsafe_allow_html=True)
+
+        # Two column: probabilities + model votes
+        col_left, col_right = st.columns([3, 2])
+
+        with col_left:
+            st.markdown('<p class="sect-hdr">Stage Probability Breakdown</p>', unsafe_allow_html=True)
+            fig_d, ax_d = plt.subplots(figsize=(8, 2.8))
+            bars = ax_d.barh([STAGE_NAMES[c] for c in range(N_CLASSES)],
+                             [proba[c]*100 for c in range(N_CLASSES)],
+                             color=[STAGE_COLORS[c] for c in range(N_CLASSES)],
+                             alpha=0.85, height=0.62)
+            for bar, val in zip(bars, proba):
+                if val > 0.01:
+                    ax_d.text(bar.get_width()+.5, bar.get_y()+bar.get_height()/2,
+                              f"{val*100:.1f}%", va="center", fontsize=8.5, fontweight="600")
+            ax_d.set_xlabel("Probability (%)", fontsize=9)
+            ax_d.set_xlim(0, 110)
+            ax_d.spines[["top","right"]].set_visible(False)
+            plt.tight_layout()
+            st.pyplot(fig_d, use_container_width=True); plt.close()
+
+        with col_right:
+            st.markdown('<p class="sect-hdr">Three-Model Agreement</p>', unsafe_allow_html=True)
+            for lbl, prob, color in [
+                ("M1 Clinical",     p1[pred], "#1a6efc"),
+                ("M2 Lifestyle",    p2[pred], "#f97316"),
+                ("M3 Demographics", p3[pred], "#a855f7"),
+            ]:
+                pct = int(prob * 100)
+                st.markdown(f"""
+                <div style="margin:.5rem 0">
+                  <div style="display:flex;justify-content:space-between;
+                       font-size:.82rem;margin-bottom:.25rem">
+                    <span>{lbl}</span>
+                    <strong style="color:{color};font-family:'DM Mono',monospace">{pct}%</strong>
+                  </div>
+                  <div style="background:rgba(255,255,255,.06);border-radius:4px;height:6px;overflow:hidden">
+                    <div style="width:{pct}%;height:100%;background:{color};border-radius:4px;
+                         transition:width .6s ease"></div>
+                  </div>
+                </div>""", unsafe_allow_html=True)
+
+            st.markdown(f"""
+            <div style="margin-top:1rem;padding:.8rem 1rem;background:rgba(255,255,255,.03);
+                 border:1px solid rgba(255,255,255,.07);border-radius:10px;font-size:.8rem">
+              <strong>Severity gauge</strong><br>
+              <div style="display:flex;align-items:center;gap:.5rem;margin-top:.4rem">
+                <div style="flex:1;background:rgba(255,255,255,.06);border-radius:4px;height:8px;overflow:hidden">
+                  <div style="width:{int(prog_score/5*100)}%;height:100%;
+                       background:linear-gradient(90deg,#10b981,#f59e0b,#ef4444);border-radius:4px"></div>
+                </div>
+                <span style="font-family:'DM Mono',monospace;font-size:.75rem;color:{stage_color};font-weight:700">
+                  {prog_score:.2f}/5
+                </span>
+              </div>
+            </div>""", unsafe_allow_html=True)
+
+        # SHAP
+        st.markdown('<p class="sect-hdr">Clinical Factor Influence (SHAP)</p>', unsafe_allow_html=True)
+        fig_shap = plot_shap_bar(shap_rf, f"Clinical Biomarkers — {STAGE_NAMES[pred]}", "#ef4444", "#1a6efc", top_n=8)
+        if fig_shap:
+            st.pyplot(fig_shap, use_container_width=True); plt.close()
+
+        # CTA to HbA1c page
+        if pred > 0:
+            st.markdown(f"""<div class="rec-block teal">
+              <strong>Next step:</strong> Use the
+              <strong>HbA1c What-If</strong> page to model how glycaemic control could
+              reduce this patient's risk score — powered by the actual GlomeraAI model.
+            </div>""", unsafe_allow_html=True)
+            if st.button("→ Open HbA1c What-If for this patient", type="primary"):
+                st.session_state.page = 1; st.rerun()
+
+        st.markdown("""
+        <div class="disclaimer">
+          <strong>⚠ Clinical Disclaimer:</strong> These are synthetic representative patient profiles
+          for demonstration purposes only. All GlomeraAI predictions shown are real outputs from
+          the trained ensemble model validated on NHANES 2015–2020 (n=2,627, AUC 0.961).
+          All outputs require review by a qualified clinician before informing any clinical decision.
+        </div>""", unsafe_allow_html=True)
