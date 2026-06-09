@@ -624,7 +624,7 @@ def _render_results(
         "📈 Will Disease Progress?",
         "⚖️ Fairness & Equity",
         "💊 HbA1c What-If",
-        "🔮 Progression Simulation",
+        "⚙️ Risk Sensitivity",
     ])
 
     SHAP_EXPLAIN = (
@@ -1067,132 +1067,146 @@ def _render_results(
     with tab8:
         st.markdown(f"""
         <div class="rec-box teal">
-          <strong>Progression Simulation for this patient</strong> — applies published KDIGO
-          stage-transition rates to this patient's GlomeraAI risk profile to show where
-          they could be at 6, 12, and 24 months under different intervention scenarios.
-          This is a rule-based simulation, not a trained ML model.
+          <strong>Multi-Factor Risk Sensitivity for this patient</strong> — set target values
+          for multiple modifiable risk factors and see how GlomeraAI responds.
+          Every result is a real model prediction.
         </div>""", unsafe_allow_html=True)
 
-        # KDIGO annual stage-transition probability estimates
-        T_ANNUAL_D = np.array([
-            [0.85, 0.10, 0.04, 0.01, 0.00, 0.00],
-            [0.05, 0.75, 0.15, 0.04, 0.01, 0.00],
-            [0.02, 0.05, 0.72, 0.17, 0.03, 0.01],
-            [0.01, 0.02, 0.08, 0.70, 0.16, 0.03],
-            [0.00, 0.01, 0.02, 0.07, 0.72, 0.18],
-            [0.00, 0.00, 0.00, 0.01, 0.09, 0.90],
-        ])
-        T_ANNUAL_D = T_ANNUAL_D / T_ANNUAL_D.sum(axis=1, keepdims=True)
+        base_d = dict(patient_data)
+        col_a8, col_b8 = st.columns(2)
+        with col_a8:
+            st.markdown("**Glycaemic Control**")
+            t_hba1c_d  = st.slider("Target HbA1c (%)", 4.0, 14.0,
+                                    float(round(base_d.get("hba1c_pct", 9.0), 1)),
+                                    step=0.1, key=f"d{s}_t_hba1c")
+            t_glucose_d = st.slider("Target Fasting Glucose (mg/dL)", 70.0, 400.0,
+                                     float(round(base_d.get("fasting_glucose_mgdl", 180.0), 0)),
+                                     step=5.0, key=f"d{s}_t_glucose")
+            st.markdown("**Blood Pressure**")
+            t_sbp_d = st.slider("Target Systolic BP (mmHg)", 90, 200,
+                                 int(round(base_d.get("mean_sbp", 145.0))),
+                                 step=1, key=f"d{s}_t_sbp",
+                                 help="KDIGO 2024: target <120 mmHg with albuminuria")
+            t_dbp_d = st.slider("Target Diastolic BP (mmHg)", 50, 130,
+                                 int(round(base_d.get("mean_dbp", 88.0))),
+                                 step=1, key=f"d{s}_t_dbp")
+        with col_b8:
+            st.markdown("**Body Composition & Lipids**")
+            t_bmi_d  = st.slider("Target BMI (kg/m²)", 15.0, 50.0,
+                                  float(round(base_d.get("bmi_kgm2", 30.0), 1)),
+                                  step=0.5, key=f"d{s}_t_bmi")
+            t_trig_d = st.slider("Target Triglycerides (mg/dL)", 50.0, 800.0,
+                                  float(round(base_d.get("triglycerides_mgdl", 220.0), 0)),
+                                  step=10.0, key=f"d{s}_t_trig")
+            t_hdl_d  = st.slider("Target HDL Cholesterol (mg/dL)", 20.0, 120.0,
+                                  float(round(base_d.get("hdl_cholesterol_mgdl", 38.0), 1)),
+                                  step=1.0, key=f"d{s}_t_hdl")
+            st.markdown("**Lifestyle**")
+            t_sed_d  = st.slider("Target sedentary time/day (min)", 0, 900,
+                                  int(round(base_d.get("sedentary_minutes_per_day", 420))),
+                                  step=30, key=f"d{s}_t_sed")
+            t_smk_d  = st.selectbox("Smoking status target", [0, 1, 2],
+                                     index=int(base_d.get("current_smoker_status", 0)),
+                                     format_func=lambda x: ["Non-smoker","Former smoker","Current smoker"][x],
+                                     key=f"d{s}_t_smk")
 
-        INTERVENTIONS_D = {
-            "No intervention (natural history)":    1.00,
-            "Blood pressure optimised (<120 mmHg)": 0.78,
-            "HbA1c optimised (<7%)":                0.72,
-            "RAS blockade (ACE-I / ARB)":           0.65,
-            "SGLT2 inhibitor initiated":            0.60,
-            "All interventions combined":           0.40,
-        }
+        if st.button("▶  Run Sensitivity Analysis", key=f"d{s}_run_sens", type="primary"):
+            modified_d = dict(base_d)
+            modified_d["hba1c_pct"]                    = t_hba1c_d
+            modified_d["fasting_glucose_mgdl"]         = t_glucose_d
+            modified_d["log_fasting_glucose_mgdl"]     = np.log1p(t_glucose_d)
+            modified_d["mean_sbp"]                     = float(t_sbp_d)
+            modified_d["mean_dbp"]                     = float(t_dbp_d)
+            modified_d["bmi_kgm2"]                     = t_bmi_d
+            modified_d["triglycerides_mgdl"]           = t_trig_d
+            modified_d["log_triglycerides_mgdl"]       = np.log1p(t_trig_d)
+            modified_d["hdl_cholesterol_mgdl"]         = t_hdl_d
+            modified_d["sedentary_minutes_per_day"]    = t_sed_d
+            modified_d["log_sedentary_minutes_per_day"] = np.log1p(t_sed_d)
+            modified_d["current_smoker_status"]        = t_smk_d
 
-        interv_d = st.selectbox(
-            "Intervention scenario",
-            list(INTERVENTIONS_D.keys()),
-            key=f"d{s}_interv_sim",
-            help="Intervention factors based on KDIGO 2024 clinical evidence"
-        )
-        n_sims_d = st.select_slider(
-            "Monte Carlo simulations",
-            options=[1000, 2000, 5000], value=2000,
-            key=f"d{s}_nsims_sim"
-        )
+            with st.spinner("Running GlomeraAI on baseline and target profiles..."):
+                _, X1b_d, X2b_d, X3b_d = build_patient_vector(base_d, mdl)
+                pred_b_d, proba_b_d, p1b_d, p2b_d, p3b_d = run_ensemble(mdl, X1b_d, X2b_d, X3b_d)
+                _, X1m_d, X2m_d, X3m_d = build_patient_vector(modified_d, mdl)
+                pred_m_d, proba_m_d, p1m_d, p2m_d, p3m_d = run_ensemble(mdl, X1m_d, X2m_d, X3m_d)
 
-        if st.button("▶  Run Progression Simulation", key=f"d{s}_run_sim", type="primary"):
-            factor_d = INTERVENTIONS_D[interv_d]
-            T_adj_d = T_ANNUAL_D.copy()
-            for i in range(N_CLASSES):
-                for j in range(N_CLASSES):
-                    if j > i:
-                        T_adj_d[i, j] *= factor_d
-                T_adj_d[i] = T_adj_d[i] / T_adj_d[i].sum()
+            sev_b_d = sum(c * proba_b_d[c] for c in range(N_CLASSES))
+            sev_m_d = sum(c * proba_m_d[c] for c in range(N_CLASSES))
+            delta_s = sev_m_d - sev_b_d
 
-            try:
-                from scipy.linalg import fractional_matrix_power
-                T_mo_d = fractional_matrix_power(T_adj_d, 1/12)
-                T_mo_d = np.clip(np.real(T_mo_d), 0, 1)
-                T_mo_d = T_mo_d / T_mo_d.sum(axis=1, keepdims=True)
-            except Exception:
-                T_mo_d = T_adj_d
+            cs1, cs2, cs3, cs4 = st.columns(4)
+            with cs1:
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[pred_b_d]}">Stage {pred_b_d}</div><div class="label">Current stage</div></div>', unsafe_allow_html=True)
+            with cs2:
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[pred_m_d]}">Stage {pred_m_d}</div><div class="label">At targets</div></div>', unsafe_allow_html=True)
+            with cs3:
+                dc = "#22c55e" if delta_s < 0 else ("#64748b" if delta_s == 0 else "#ef4444")
+                ds = "▼" if delta_s < 0 else ("=" if delta_s == 0 else "▲")
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{dc}">{ds} {abs(delta_s):.2f}</div><div class="label">Severity change</div></div>', unsafe_allow_html=True)
+            with cs4:
+                risk_m_d = sum(proba_m_d[c] for c in range(4, N_CLASSES))
+                rc = "#22c55e" if risk_m_d < sum(proba_b_d[c] for c in range(4, N_CLASSES)) else "#ef4444"
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{rc}">{risk_m_d*100:.0f}%</div><div class="label">Stage 4+ risk</div></div>', unsafe_allow_html=True)
 
-            with st.spinner(f"Running {n_sims_d:,} simulations..."):
-                rng_d = np.random.default_rng(42)
-                init_d = rng_d.choice(N_CLASSES, size=n_sims_d, p=proba_vec)
-                traj_d = np.zeros((n_sims_d, 25), dtype=np.int8)
-                traj_d[:, 0] = init_d
-                for t in range(1, 25):
-                    for sim in range(n_sims_d):
-                        cur = traj_d[sim, t-1]
-                        traj_d[sim, t] = rng_d.choice(N_CLASSES, p=T_mo_d[cur])
+            if delta_s < -0.3:
+                st.markdown(f"""<div class="rec-box green">
+                  <strong>Meaningful risk reduction.</strong> Achieving these targets reduces
+                  severity by {abs(delta_s):.2f} points: {STAGE_NAMES[pred_b_d]} → {STAGE_NAMES[pred_m_d]}.
+                </div>""", unsafe_allow_html=True)
+            elif delta_s < 0:
+                st.markdown(f"""<div class="rec-box amber">
+                  <strong>Modest improvement.</strong> Severity decreases by {abs(delta_s):.2f} points.
+                </div>""", unsafe_allow_html=True)
+            elif delta_s == 0:
+                st.markdown("""<div class="rec-box blue">No change — targets are similar to baseline.</div>""",
+                            unsafe_allow_html=True)
+            else:
+                st.markdown("""<div class="rec-box red">Risk higher — check some targets are set above baseline.</div>""",
+                            unsafe_allow_html=True)
 
-            prob_t_d = np.zeros((25, N_CLASSES))
-            for t in range(25):
-                for sv in range(N_CLASSES):
-                    prob_t_d[t, sv] = (traj_d[:, t] == sv).mean()
+            fig_s8, (ax_s1, ax_s2) = plt.subplots(1, 2, figsize=(13, 4))
+            x8 = np.arange(N_CLASSES); w8 = 0.38
+            ax_s1.bar(x8 - w8/2, proba_b_d * 100, w8, label="Baseline",
+                      color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=0.5)
+            ax_s1.bar(x8 + w8/2, proba_m_d * 100, w8, label="At targets",
+                      color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=1.0)
+            ax_s1.set_xticks(x8)
+            ax_s1.set_xticklabels([f"S{c}" for c in range(N_CLASSES)])
+            ax_s1.set_ylabel("Probability (%)")
+            ax_s1.set_title("Stage Probability: Baseline vs Targets", fontsize=10, fontweight="700")
+            ax_s1.legend(fontsize=9); ax_s1.spines[["top","right"]].set_visible(False)
 
-            # Key milestones
-            csd1, csd2, csd3 = st.columns(3)
-            for months_pt, col in [(6, csd1), (12, csd2), (24, csd3)]:
-                stage_t = traj_d[:, months_pt]
-                p_esrd  = (stage_t >= 4).mean()
-                most_l  = int(np.bincount(stage_t).argmax())
-                rc      = "#ef4444" if p_esrd > 0.2 else ("#f59e0b" if p_esrd > 0.05 else "#22c55e")
-                with col:
-                    st.markdown(f'''<div class="metric-tile">
-                      <div class="value" style="color:{STAGE_COLORS[most_l]}">Stage {most_l}</div>
-                      <div class="label">Most likely at {months_pt} months</div>
-                      <div style="margin-top:.4rem;font-size:.72rem;color:{rc};font-weight:700">
-                        {p_esrd*100:.0f}% risk Stage 4+
-                      </div>
-                    </div>''', unsafe_allow_html=True)
-
-            fig_sd, axes_sd = plt.subplots(1, 2, figsize=(13, 4.5))
-            time_pts = np.arange(25)
-
-            bottom_d = np.zeros(25)
-            for sv in range(N_CLASSES):
-                axes_sd[0].fill_between(time_pts, bottom_d, bottom_d + prob_t_d[:, sv],
-                                        color=STAGE_COLORS[sv], alpha=0.82,
-                                        label=STAGE_NAMES[sv].split("—")[0].strip())
-                bottom_d += prob_t_d[:, sv]
-            axes_sd[0].set_xlim(0, 24)
-            axes_sd[0].set_xticks([0, 6, 12, 18, 24])
-            axes_sd[0].set_xticklabels(["Now", "6 mo", "12 mo", "18 mo", "24 mo"])
-            axes_sd[0].set_ylabel("Probability")
-            axes_sd[0].set_title("Stage Distribution Over Time", fontsize=10, fontweight="700")
-            axes_sd[0].legend(fontsize=8, loc="upper left")
-            axes_sd[0].spines[["top", "right"]].set_visible(False)
-
-            p4p_d = prob_t_d[:, 4] + prob_t_d[:, 5]
-            axes_sd[1].plot(time_pts, p4p_d * 100, color="#ef4444", lw=2.5, marker="o", markersize=4)
-            axes_sd[1].fill_between(time_pts, 0, p4p_d * 100, alpha=0.12, color="#ef4444")
-            axes_sd[1].axhline(20, color="#f59e0b", lw=1, ls="--", alpha=0.7, label="20% threshold")
-            axes_sd[1].set_xlim(0, 24)
-            axes_sd[1].set_xticks([0, 6, 12, 18, 24])
-            axes_sd[1].set_xticklabels(["Now", "6 mo", "12 mo", "18 mo", "24 mo"])
-            axes_sd[1].set_ylabel("Probability (%)")
-            axes_sd[1].set_title("Risk of Stage 4+ Over Time", fontsize=10, fontweight="700")
-            axes_sd[1].legend(fontsize=8)
-            axes_sd[1].spines[["top", "right"]].set_visible(False)
+            labels_s8 = {
+                "hba1c_pct": "HbA1c (%)", "mean_sbp": "Systolic BP",
+                "mean_dbp": "Diastolic BP", "bmi_kgm2": "BMI",
+                "triglycerides_mgdl": "Triglycerides", "hdl_cholesterol_mgdl": "HDL",
+                "sedentary_minutes_per_day": "Sedentary (min)",
+            }
+            changed_s8 = {f: modified_d[f] - base_d[f] for f in labels_s8
+                          if f in base_d and abs(modified_d[f] - base_d[f]) > 0.01}
+            if changed_s8:
+                feats_s8  = list(changed_s8.keys())
+                deltas_s8 = [changed_s8[f] for f in feats_s8]
+                colors_s8 = ["#22c55e" if d < 0 else "#ef4444" for d in deltas_s8]
+                ax_s2.barh([labels_s8[f] for f in feats_s8], deltas_s8, color=colors_s8, alpha=0.85)
+                ax_s2.axvline(0, color="#374151", lw=1, ls="--")
+                ax_s2.set_xlabel("Change from baseline")
+                ax_s2.set_title("Input Changes Applied", fontsize=10, fontweight="700")
+                ax_s2.spines[["top","right"]].set_visible(False)
+            else:
+                ax_s2.text(0.5, 0.5, "No changes from baseline", ha="center", va="center",
+                           fontsize=11, color="#64748b", transform=ax_s2.transAxes)
+                ax_s2.axis("off")
             plt.tight_layout()
-            st.pyplot(fig_sd, use_container_width=True); plt.close()
+            st.pyplot(fig_s8, use_container_width=True); plt.close()
 
         st.markdown("""
         <div class="disclaimer">
-          This is a rule-based clinical simulation. It applies KDIGO 2024 population-level
-          stage-transition probability estimates to this patient's GlomeraAI risk profile
-          as the starting distribution. It is not a trained ML model and does not predict
-          individual outcomes. All outputs require clinician review.
+          Each result is a real prediction from the trained GlomeraAI ensemble re-run with
+          modified input values. This is a sensitivity analysis — not a prediction of what will
+          clinically happen. All outputs require clinician review.
         </div>""", unsafe_allow_html=True)
-
-
     st.markdown("""
     <div class="disclaimer">
       <strong>⚕️ Demo Disclaimer:</strong>
