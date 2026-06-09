@@ -1200,12 +1200,27 @@ elif st.session_state.current_page == 3:
     </div>""", unsafe_allow_html=True)
 
     st.divider()
-    col_back, _, col_new = st.columns([2, 3, 2])
-    with col_back:
-        if st.button("Edit Patient Data", use_container_width=True):
+
+    st.markdown("""
+    <div class="rec-box teal">
+      <strong>Continue exploring this patient</strong> — use the tools below to model
+      the impact of clinical interventions on this patient's risk profile.
+    </div>""", unsafe_allow_html=True)
+
+    ca, cb, cc, cd = st.columns(4)
+    with ca:
+        if st.button("📈  HbA1c What-If", type="primary", use_container_width=True,
+                     help="Model how improving HbA1c changes this patient's risk"):
+            st.session_state.current_page = 5; st.rerun()
+    with cb:
+        if st.button("⚙️  Risk Sensitivity", type="primary", use_container_width=True,
+                     help="Modify multiple risk factors and see how the model responds"):
+            st.session_state.current_page = 6; st.rerun()
+    with cc:
+        if st.button("✏️  Edit Patient Data", use_container_width=True):
             st.session_state.current_page = 0; st.rerun()
-    with col_new:
-        if st.button("New Patient", type="primary", use_container_width=True):
+    with cd:
+        if st.button("🔄  New Patient", use_container_width=True):
             st.session_state.current_page = 0; st.rerun()
 
 
@@ -1227,6 +1242,14 @@ elif st.session_state.current_page == 4:
 
 
 elif st.session_state.current_page == 5:
+    col_back5, col_fwd5, _ = st.columns([2, 2, 4])
+    with col_back5:
+        if st.button("← Back to Results", use_container_width=True):
+            st.session_state.current_page = 3; st.rerun()
+    with col_fwd5:
+        if st.button("⚙️ Risk Sensitivity →", use_container_width=True):
+            st.session_state.current_page = 6; st.rerun()
+
     st.markdown("""
     <div style="margin-bottom:1.2rem">
       <div style="font-size:1.4rem;font-weight:800;color:#0f172a;margin-bottom:.3rem">
@@ -1433,6 +1456,14 @@ elif st.session_state.current_page == 5:
 
 
 elif st.session_state.current_page == 6:
+    col_back6, col_bk6, _ = st.columns([2, 2, 4])
+    with col_back6:
+        if st.button("← Back to Results", use_container_width=True):
+            st.session_state.current_page = 3; st.rerun()
+    with col_bk6:
+        if st.button("📈 HbA1c What-If ←", use_container_width=True):
+            st.session_state.current_page = 5; st.rerun()
+
     st.markdown("""
     <div style="margin-bottom:1.2rem">
       <div style="font-size:1.4rem;font-weight:800;color:#0f172a;margin-bottom:.3rem">
@@ -1643,7 +1674,3 @@ elif st.session_state.current_page == 6:
       clinically happen to this patient. GlomeraAI was trained on cross-sectional NHANES 2015–2020
       data and cannot model longitudinal disease trajectories. All outputs require clinician review.
     </div>""", unsafe_allow_html=True)
-
-
-
-
