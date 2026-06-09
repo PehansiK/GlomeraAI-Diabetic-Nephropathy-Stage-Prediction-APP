@@ -616,13 +616,15 @@ def _render_results(
 
     st.divider()
 
-    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs([
         "📋 Summary",
         "🌲 Clinical Factors (M1)",
         "⚡ Lifestyle Factors (M2)",
         "📊 Demographic Factors (M3)",
         "📈 Will Disease Progress?",
         "⚖️ Fairness & Equity",
+        "💊 HbA1c What-If",
+        "⚙️ Risk Sensitivity",
     ])
 
     SHAP_EXPLAIN = (
@@ -949,6 +951,262 @@ def _render_results(
         else:
             st.info("Fairness audit table not available in the loaded model file.")
 
+    with tab7:
+        st.markdown(f"""
+        <div class="rec-box teal">
+          <strong>HbA1c What-If for this patient</strong> — uses the actual trained GlomeraAI
+          ensemble to show how the predicted risk changes as HbA1c improves month by month.
+          Every result is a real model prediction, not a simulation.
+        </div>""", unsafe_allow_html=True)
+
+        current_hba1c = patient_data.get("hba1c_pct", 8.0)
+        col_l7, col_r7 = st.columns(2)
+        with col_l7:
+            hba1c_now_d  = st.slider("Current HbA1c (%)", 5.5, 14.0,
+                                      float(round(current_hba1c, 1)), step=0.1,
+                                      key=f"d{s}_hba1c_now")
+            hba1c_goal_d = st.slider("Target HbA1c (%)", 5.5, 14.0,
+                                      max(5.5, float(round(current_hba1c - 2.0, 1))), step=0.1,
+                                      key=f"d{s}_hba1c_goal")
+        with col_r7:
+            n_months_d = st.slider("Projection horizon (months)", 6, 24, 12, step=6,
+                                    key=f"d{s}_months")
+
+        if hba1c_goal_d >= hba1c_now_d:
+            st.markdown("""<div class="rec-box red">Target HbA1c must be lower than current value.</div>""",
+                        unsafe_allow_html=True)
+        elif st.button("▶  Run HbA1c What-If", key=f"d{s}_run_whf", type="primary"):
+            trajectory_d = np.linspace(hba1c_now_d, hba1c_goal_d, n_months_d + 1)
+            results_d = []
+            with st.spinner("Running model at each time point..."):
+                for t, hba1c_val in enumerate(trajectory_d):
+                    pt_d = dict(patient_data)
+                    pt_d["hba1c_pct"] = float(hba1c_val)
+                    pt_d["log_fasting_glucose_mgdl"] = np.log1p(
+                        patient_data.get("fasting_glucose_mgdl", 178.0) * (hba1c_val / hba1c_now_d)
+                    )
+                    df_d, X1d, X2d, X3d = build_patient_vector(pt_d, mdl)
+                    pred_d, proba_d, _, _, _ = run_ensemble(mdl, X1d, X2d, X3d)
+                    results_d.append({"month": t, "hba1c": hba1c_val,
+                                      "pred": pred_d, "proba": proba_d.tolist()})
+
+            sev_start_d = sum(c * results_d[0]["proba"][c] for c in range(N_CLASSES))
+            sev_end_d   = sum(c * results_d[-1]["proba"][c] for c in range(N_CLASSES))
+            delta_d     = sev_end_d - sev_start_d
+            pred_end_d  = results_d[-1]["pred"]
+            pred_start_d = results_d[0]["pred"]
+
+            cw1, cw2, cw3 = st.columns(3)
+            with cw1:
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[pred_start_d]}">Stage {pred_start_d}</div><div class="label">Now</div></div>', unsafe_allow_html=True)
+            with cw2:
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[pred_end_d]}">Stage {pred_end_d}</div><div class="label">At {n_months_d} months</div></div>', unsafe_allow_html=True)
+            with cw3:
+                d_col = "#22c55e" if delta_d < 0 else "#ef4444"
+                d_sym = "▼" if delta_d < 0 else "▲"
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{d_col}">{d_sym}{abs(delta_d):.2f}</div><div class="label">Severity change</div></div>', unsafe_allow_html=True)
+
+            if delta_d < -0.3:
+                st.markdown(f"""<div class="rec-box green">
+                  <strong>Meaningful improvement projected.</strong> Reducing HbA1c from
+                  {hba1c_now_d:.1f}% to {hba1c_goal_d:.1f}% reduces severity score by
+                  {abs(delta_d):.2f} points.
+                </div>""", unsafe_allow_html=True)
+            elif delta_d < 0:
+                st.markdown(f"""<div class="rec-box amber">
+                  <strong>Modest improvement.</strong> Severity score decreases by {abs(delta_d):.2f} points.
+                </div>""", unsafe_allow_html=True)
+            else:
+                st.markdown("""<div class="rec-box blue">
+                  <strong>Other risk factors dominant.</strong>
+                  HbA1c control alone shows limited impact for this patient profile.
+                </div>""", unsafe_allow_html=True)
+
+            months_d = [r["month"] for r in results_d]
+            sev_d    = [sum(c * r["proba"][c] for c in range(N_CLASSES)) for r in results_d]
+            hba1c_d  = [r["hba1c"] for r in results_d]
+            prob_mx  = np.array([[r["proba"][c] for c in range(N_CLASSES)] for r in results_d])
+
+            fig_w, axes_w = plt.subplots(1, 3, figsize=(13, 3.8))
+            axes_w[0].plot(months_d, hba1c_d, color="#f59e0b", lw=2.5, marker="o", markersize=4)
+            axes_w[0].axhline(7.0, color="#22c55e", lw=1, ls="--", alpha=0.7, label="Target <7%")
+            axes_w[0].fill_between(months_d, hba1c_d, 7.0,
+                                   where=[h > 7.0 for h in hba1c_d], alpha=0.12, color="#ef4444")
+            axes_w[0].set_title("HbA1c Trajectory", fontsize=10, fontweight="700")
+            axes_w[0].set_xlabel("Month"); axes_w[0].set_ylabel("HbA1c (%)")
+            axes_w[0].legend(fontsize=8); axes_w[0].spines[["top","right"]].set_visible(False)
+
+            axes_w[1].plot(months_d, sev_d, color="#3b82f6", lw=2.5, marker="o", markersize=4)
+            axes_w[1].fill_between(months_d, sev_d, alpha=0.1, color="#3b82f6")
+            axes_w[1].set_title("Severity Score (Real Model)", fontsize=10, fontweight="700")
+            axes_w[1].set_xlabel("Month"); axes_w[1].set_ylabel("Score (0–5)")
+            axes_w[1].set_ylim(0, 5); axes_w[1].spines[["top","right"]].set_visible(False)
+
+            bottom_w = np.zeros(len(months_d))
+            for c in range(N_CLASSES):
+                axes_w[2].fill_between(months_d, bottom_w, bottom_w + prob_mx[:, c],
+                                       color=STAGE_COLORS[c], alpha=0.82,
+                                       label=STAGE_NAMES[c].split("—")[0].strip())
+                bottom_w += prob_mx[:, c]
+            axes_w[2].set_title("Stage Probability Over Time", fontsize=10, fontweight="700")
+            axes_w[2].set_xlabel("Month"); axes_w[2].set_ylabel("Probability")
+            axes_w[2].set_ylim(0, 1); axes_w[2].legend(fontsize=7, loc="upper right")
+            axes_w[2].spines[["top","right"]].set_visible(False)
+
+            plt.tight_layout()
+            st.pyplot(fig_w, use_container_width=True); plt.close()
+
+        st.markdown("""
+        <div class="disclaimer">
+          Each result is a real prediction from the trained GlomeraAI ensemble re-run with
+          a modified HbA1c value. This is a sensitivity analysis — not a longitudinal prediction.
+          GlomeraAI was trained on cross-sectional NHANES 2015–2020 data. All outputs require
+          clinician review.
+        </div>""", unsafe_allow_html=True)
+
+    with tab8:
+        st.markdown(f"""
+        <div class="rec-box teal">
+          <strong>Multi-Factor Risk Sensitivity for this patient</strong> — set target values
+          for multiple modifiable risk factors and see how GlomeraAI responds.
+          Every result is a real model prediction.
+        </div>""", unsafe_allow_html=True)
+
+        base_d = dict(patient_data)
+        col_a8, col_b8 = st.columns(2)
+        with col_a8:
+            st.markdown("**Glycaemic Control**")
+            t_hba1c_d  = st.slider("Target HbA1c (%)", 4.0, 14.0,
+                                    float(round(base_d.get("hba1c_pct", 9.0), 1)),
+                                    step=0.1, key=f"d{s}_t_hba1c")
+            t_glucose_d = st.slider("Target Fasting Glucose (mg/dL)", 70.0, 400.0,
+                                     float(round(base_d.get("fasting_glucose_mgdl", 180.0), 0)),
+                                     step=5.0, key=f"d{s}_t_glucose")
+            st.markdown("**Blood Pressure**")
+            t_sbp_d = st.slider("Target Systolic BP (mmHg)", 90, 200,
+                                 int(round(base_d.get("mean_sbp", 145.0))),
+                                 step=1, key=f"d{s}_t_sbp",
+                                 help="KDIGO 2024: target <120 mmHg with albuminuria")
+            t_dbp_d = st.slider("Target Diastolic BP (mmHg)", 50, 130,
+                                 int(round(base_d.get("mean_dbp", 88.0))),
+                                 step=1, key=f"d{s}_t_dbp")
+        with col_b8:
+            st.markdown("**Body Composition & Lipids**")
+            t_bmi_d  = st.slider("Target BMI (kg/m²)", 15.0, 50.0,
+                                  float(round(base_d.get("bmi_kgm2", 30.0), 1)),
+                                  step=0.5, key=f"d{s}_t_bmi")
+            t_trig_d = st.slider("Target Triglycerides (mg/dL)", 50.0, 800.0,
+                                  float(round(base_d.get("triglycerides_mgdl", 220.0), 0)),
+                                  step=10.0, key=f"d{s}_t_trig")
+            t_hdl_d  = st.slider("Target HDL Cholesterol (mg/dL)", 20.0, 120.0,
+                                  float(round(base_d.get("hdl_cholesterol_mgdl", 38.0), 1)),
+                                  step=1.0, key=f"d{s}_t_hdl")
+            st.markdown("**Lifestyle**")
+            t_sed_d  = st.slider("Target sedentary time/day (min)", 0, 900,
+                                  int(round(base_d.get("sedentary_minutes_per_day", 420))),
+                                  step=30, key=f"d{s}_t_sed")
+            t_smk_d  = st.selectbox("Smoking status target", [0, 1, 2],
+                                     index=int(base_d.get("current_smoker_status", 0)),
+                                     format_func=lambda x: ["Non-smoker","Former smoker","Current smoker"][x],
+                                     key=f"d{s}_t_smk")
+
+        if st.button("▶  Run Sensitivity Analysis", key=f"d{s}_run_sens", type="primary"):
+            modified_d = dict(base_d)
+            modified_d["hba1c_pct"]                    = t_hba1c_d
+            modified_d["fasting_glucose_mgdl"]         = t_glucose_d
+            modified_d["log_fasting_glucose_mgdl"]     = np.log1p(t_glucose_d)
+            modified_d["mean_sbp"]                     = float(t_sbp_d)
+            modified_d["mean_dbp"]                     = float(t_dbp_d)
+            modified_d["bmi_kgm2"]                     = t_bmi_d
+            modified_d["triglycerides_mgdl"]           = t_trig_d
+            modified_d["log_triglycerides_mgdl"]       = np.log1p(t_trig_d)
+            modified_d["hdl_cholesterol_mgdl"]         = t_hdl_d
+            modified_d["sedentary_minutes_per_day"]    = t_sed_d
+            modified_d["log_sedentary_minutes_per_day"] = np.log1p(t_sed_d)
+            modified_d["current_smoker_status"]        = t_smk_d
+
+            with st.spinner("Running GlomeraAI on baseline and target profiles..."):
+                _, X1b_d, X2b_d, X3b_d = build_patient_vector(base_d, mdl)
+                pred_b_d, proba_b_d, p1b_d, p2b_d, p3b_d = run_ensemble(mdl, X1b_d, X2b_d, X3b_d)
+                _, X1m_d, X2m_d, X3m_d = build_patient_vector(modified_d, mdl)
+                pred_m_d, proba_m_d, p1m_d, p2m_d, p3m_d = run_ensemble(mdl, X1m_d, X2m_d, X3m_d)
+
+            sev_b_d = sum(c * proba_b_d[c] for c in range(N_CLASSES))
+            sev_m_d = sum(c * proba_m_d[c] for c in range(N_CLASSES))
+            delta_s = sev_m_d - sev_b_d
+
+            cs1, cs2, cs3, cs4 = st.columns(4)
+            with cs1:
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[pred_b_d]}">Stage {pred_b_d}</div><div class="label">Current stage</div></div>', unsafe_allow_html=True)
+            with cs2:
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[pred_m_d]}">Stage {pred_m_d}</div><div class="label">At targets</div></div>', unsafe_allow_html=True)
+            with cs3:
+                dc = "#22c55e" if delta_s < 0 else ("#64748b" if delta_s == 0 else "#ef4444")
+                ds = "▼" if delta_s < 0 else ("=" if delta_s == 0 else "▲")
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{dc}">{ds} {abs(delta_s):.2f}</div><div class="label">Severity change</div></div>', unsafe_allow_html=True)
+            with cs4:
+                risk_m_d = sum(proba_m_d[c] for c in range(4, N_CLASSES))
+                rc = "#22c55e" if risk_m_d < sum(proba_b_d[c] for c in range(4, N_CLASSES)) else "#ef4444"
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{rc}">{risk_m_d*100:.0f}%</div><div class="label">Stage 4+ risk</div></div>', unsafe_allow_html=True)
+
+            if delta_s < -0.3:
+                st.markdown(f"""<div class="rec-box green">
+                  <strong>Meaningful risk reduction.</strong> Achieving these targets reduces
+                  severity by {abs(delta_s):.2f} points: {STAGE_NAMES[pred_b_d]} → {STAGE_NAMES[pred_m_d]}.
+                </div>""", unsafe_allow_html=True)
+            elif delta_s < 0:
+                st.markdown(f"""<div class="rec-box amber">
+                  <strong>Modest improvement.</strong> Severity decreases by {abs(delta_s):.2f} points.
+                </div>""", unsafe_allow_html=True)
+            elif delta_s == 0:
+                st.markdown("""<div class="rec-box blue">No change — targets are similar to baseline.</div>""",
+                            unsafe_allow_html=True)
+            else:
+                st.markdown("""<div class="rec-box red">Risk higher — check some targets are set above baseline.</div>""",
+                            unsafe_allow_html=True)
+
+            fig_s8, (ax_s1, ax_s2) = plt.subplots(1, 2, figsize=(13, 4))
+            x8 = np.arange(N_CLASSES); w8 = 0.38
+            ax_s1.bar(x8 - w8/2, proba_b_d * 100, w8, label="Baseline",
+                      color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=0.5)
+            ax_s1.bar(x8 + w8/2, proba_m_d * 100, w8, label="At targets",
+                      color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=1.0)
+            ax_s1.set_xticks(x8)
+            ax_s1.set_xticklabels([f"S{c}" for c in range(N_CLASSES)])
+            ax_s1.set_ylabel("Probability (%)")
+            ax_s1.set_title("Stage Probability: Baseline vs Targets", fontsize=10, fontweight="700")
+            ax_s1.legend(fontsize=9); ax_s1.spines[["top","right"]].set_visible(False)
+
+            labels_s8 = {
+                "hba1c_pct": "HbA1c (%)", "mean_sbp": "Systolic BP",
+                "mean_dbp": "Diastolic BP", "bmi_kgm2": "BMI",
+                "triglycerides_mgdl": "Triglycerides", "hdl_cholesterol_mgdl": "HDL",
+                "sedentary_minutes_per_day": "Sedentary (min)",
+            }
+            changed_s8 = {f: modified_d[f] - base_d[f] for f in labels_s8
+                          if f in base_d and abs(modified_d[f] - base_d[f]) > 0.01}
+            if changed_s8:
+                feats_s8  = list(changed_s8.keys())
+                deltas_s8 = [changed_s8[f] for f in feats_s8]
+                colors_s8 = ["#22c55e" if d < 0 else "#ef4444" for d in deltas_s8]
+                ax_s2.barh([labels_s8[f] for f in feats_s8], deltas_s8, color=colors_s8, alpha=0.85)
+                ax_s2.axvline(0, color="#374151", lw=1, ls="--")
+                ax_s2.set_xlabel("Change from baseline")
+                ax_s2.set_title("Input Changes Applied", fontsize=10, fontweight="700")
+                ax_s2.spines[["top","right"]].set_visible(False)
+            else:
+                ax_s2.text(0.5, 0.5, "No changes from baseline", ha="center", va="center",
+                           fontsize=11, color="#64748b", transform=ax_s2.transAxes)
+                ax_s2.axis("off")
+            plt.tight_layout()
+            st.pyplot(fig_s8, use_container_width=True); plt.close()
+
+        st.markdown("""
+        <div class="disclaimer">
+          Each result is a real prediction from the trained GlomeraAI ensemble re-run with
+          modified input values. This is a sensitivity analysis — not a prediction of what will
+          clinically happen. All outputs require clinician review.
+        </div>""", unsafe_allow_html=True)
     st.markdown("""
     <div class="disclaimer">
       <strong>⚕️ Demo Disclaimer:</strong>
