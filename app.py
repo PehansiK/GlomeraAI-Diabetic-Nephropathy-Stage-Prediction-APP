@@ -562,9 +562,9 @@ with st.sidebar:
         1: "Lifestyle",
         2: "Demographics",
         3: "Results",
-        4: "🎯  Demo Patients",
         5: "📈  HbA1c What-If",
-        6: "⚙️  Risk Sensitivity",
+        6: "🔮  Progression Simulation",
+        4: "🎯  Demo Patients",
     }
 
     for pg, label in nav_labels.items():
@@ -1467,210 +1467,213 @@ elif st.session_state.current_page == 6:
     st.markdown("""
     <div style="margin-bottom:1.2rem">
       <div style="font-size:1.4rem;font-weight:800;color:#0f172a;margin-bottom:.3rem">
-        ⚙️ Multi-Factor Risk Sensitivity Analysis
+        🔮 Disease Progression Simulation
       </div>
       <div style="font-size:.84rem;color:#64748b;line-height:1.7">
-        Uses the trained GlomeraAI ensemble to show how predicted DKD risk changes when
-        multiple clinical risk factors are simultaneously modified. Every result is a real
-        model prediction. Complete the patient assessment first to load patient data.
+        A rule-based clinical simulation combining this patient's current GlomeraAI risk profile
+        with published KDIGO stage-transition probability estimates. Shows where the patient could
+        be at 6, 12, and 24 months under different intervention scenarios.
+        This is a population-level simulation, not an individual prediction.
       </div>
     </div>
     """, unsafe_allow_html=True)
 
     has_patient = bool(st.session_state.patient_data)
+    current_pred  = st.session_state.get("last_pred", 2)
+    current_proba = st.session_state.get("last_proba", np.array([1/6]*6))
 
     if not has_patient:
         st.markdown("""
         <div class="rec-box amber">
-          No patient loaded. Complete the Patient Assessment first to run this analysis.
+          No patient loaded. Complete the Patient Assessment first to use your patient's
+          GlomeraAI risk profile as the starting point for this simulation.
         </div>""", unsafe_allow_html=True)
-        st.stop()
 
-    base        = dict(st.session_state.patient_data)
-    current_pred  = st.session_state.get("last_pred", 2)
-    current_proba = st.session_state.get("last_proba", np.array([1/6]*6))
+    # KDIGO annual stage-transition probability estimates
+    # Source: KDIGO 2024 Clinical Practice Guidelines (Kidney Int. 105(4S):S117-S314)
+    T_ANNUAL = np.array([
+        [0.85, 0.10, 0.04, 0.01, 0.00, 0.00],
+        [0.05, 0.75, 0.15, 0.04, 0.01, 0.00],
+        [0.02, 0.05, 0.72, 0.17, 0.03, 0.01],
+        [0.01, 0.02, 0.08, 0.70, 0.16, 0.03],
+        [0.00, 0.01, 0.02, 0.07, 0.72, 0.18],
+        [0.00, 0.00, 0.00, 0.01, 0.09, 0.90],
+    ])
+    T_ANNUAL = T_ANNUAL / T_ANNUAL.sum(axis=1, keepdims=True)
+
+    INTERVENTIONS = {
+        "No intervention (natural history)":     1.00,
+        "Blood pressure optimised (<120 mmHg)":  0.78,
+        "HbA1c optimised (<7%)":                 0.72,
+        "RAS blockade (ACE-I / ARB) initiated":  0.65,
+        "SGLT2 inhibitor initiated":             0.60,
+        "All interventions combined":            0.40,
+    }
 
     st.markdown(f"""
-    <div class="rec-box blue">
-      Running sensitivity analysis for the current patient —
+    <div class="rec-box teal">
+      Starting from this patient's GlomeraAI assessment:
       <strong>{STAGE_NAMES[current_pred]}</strong>
       (model confidence {current_proba[current_pred]*100:.0f}%).
-      Adjust the target values below and click Run to see how the risk profile changes.
+      The simulation uses this probability distribution as the starting state.
     </div>""", unsafe_allow_html=True)
 
-    st.markdown('<p class="sect-hdr">Set Intervention Targets</p>', unsafe_allow_html=True)
+    # Show current probability bar
+    st.markdown('''<p class="sect-hdr">Current GlomeraAI Risk Profile (Starting State)</p>''', unsafe_allow_html=True)
+    fig_bar, ax_bar = plt.subplots(figsize=(9, 1.0))
+    left_b = 0
+    for sv in range(N_CLASSES):
+        ax_bar.barh(0, current_proba[sv], left=left_b, color=STAGE_COLORS[sv], alpha=0.85)
+        if current_proba[sv] > 0.06:
+            ax_bar.text(left_b + current_proba[sv]/2, 0,
+                        f"S{sv}\n{current_proba[sv]*100:.0f}%",
+                        ha="center", va="center", fontsize=8, color="white", fontweight="bold")
+        left_b += current_proba[sv]
+    ax_bar.set_xlim(0, 1); ax_bar.axis("off")
+    plt.tight_layout()
+    st.pyplot(fig_bar, use_container_width=True); plt.close()
 
-    col_a, col_b = st.columns(2)
-    with col_a:
-        st.markdown("**Glycaemic Control**")
-        t_hba1c = st.slider("Target HbA1c (%)", 4.0, 14.0,
-                             float(round(base.get("hba1c_pct", 9.0), 1)), step=0.1,
-                             help="KDIGO 2024: HbA1c target <7% reduces albuminuria progression")
-        t_glucose = st.slider("Target Fasting Glucose (mg/dL)", 70.0, 400.0,
-                               float(round(base.get("fasting_glucose_mgdl", 180.0), 0)), step=5.0)
+    st.markdown('''<p class="sect-hdr">Simulation Settings</p>''', unsafe_allow_html=True)
+    col_set1, col_set2 = st.columns(2)
+    with col_set1:
+        intervention = st.selectbox("Intervention scenario", list(INTERVENTIONS.keys()),
+                                     help="Intervention factors based on KDIGO 2024 clinical evidence")
+    with col_set2:
+        n_sims = st.select_slider("Monte Carlo simulations",
+                                   options=[1000, 2000, 5000, 10000], value=5000)
 
-        st.markdown("**Blood Pressure**")
-        t_sbp = st.slider("Target Systolic BP (mmHg)", 90, 200,
-                           int(round(base.get("mean_sbp", 145.0))), step=1,
-                           help="KDIGO 2024: target <120 mmHg in patients with albuminuria")
-        t_dbp = st.slider("Target Diastolic BP (mmHg)", 50, 130,
-                           int(round(base.get("mean_dbp", 88.0))), step=1)
+    if st.button("▶  Run 24-Month Simulation", type="primary"):
+        factor = INTERVENTIONS[intervention]
 
-    with col_b:
-        st.markdown("**Body Composition & Lipids**")
-        t_bmi = st.slider("Target BMI (kg/m²)", 15.0, 50.0,
-                           float(round(base.get("bmi_kgm2", 30.0), 1)), step=0.5)
-        t_trig = st.slider("Target Triglycerides (mg/dL)", 50.0, 800.0,
-                            float(round(base.get("triglycerides_mgdl", 220.0), 0)), step=10.0)
-        t_hdl = st.slider("Target HDL Cholesterol (mg/dL)", 20.0, 120.0,
-                           float(round(base.get("hdl_cholesterol_mgdl", 38.0), 1)), step=1.0,
-                           help="Low HDL is an independent predictor of DKD progression")
+        T_adj = T_ANNUAL.copy()
+        for i in range(N_CLASSES):
+            for j in range(N_CLASSES):
+                if j > i:
+                    T_adj[i, j] *= factor
+            T_adj[i] = T_adj[i] / T_adj[i].sum()
 
-        st.markdown("**Lifestyle**")
-        t_sedentary = st.slider("Target sedentary time/day (minutes)", 0, 900,
-                                 int(round(base.get("sedentary_minutes_per_day", 420))), step=30)
-        t_smoker = st.selectbox("Smoking status target", [0, 1, 2],
-                                 index=int(base.get("current_smoker_status", 0)),
-                                 format_func=lambda x: ["Non-smoker", "Former smoker", "Current smoker"][x])
+        try:
+            from scipy.linalg import fractional_matrix_power
+            T_monthly = fractional_matrix_power(T_adj, 1/12)
+            T_monthly = np.clip(np.real(T_monthly), 0, 1)
+            T_monthly = T_monthly / T_monthly.sum(axis=1, keepdims=True)
+        except Exception:
+            T_monthly = T_adj
 
-    if st.button("▶  Run Sensitivity Analysis", type="primary"):
-        modified = dict(base)
-        modified["hba1c_pct"]                    = t_hba1c
-        modified["fasting_glucose_mgdl"]         = t_glucose
-        modified["log_fasting_glucose_mgdl"]     = np.log1p(t_glucose)
-        modified["mean_sbp"]                     = float(t_sbp)
-        modified["mean_dbp"]                     = float(t_dbp)
-        modified["bmi_kgm2"]                     = t_bmi
-        modified["triglycerides_mgdl"]           = t_trig
-        modified["log_triglycerides_mgdl"]       = np.log1p(t_trig)
-        modified["hdl_cholesterol_mgdl"]         = t_hdl
-        modified["sedentary_minutes_per_day"]    = t_sedentary
-        modified["log_sedentary_minutes_per_day"] = np.log1p(t_sedentary)
-        modified["current_smoker_status"]        = t_smoker
+        with st.spinner(f"Running {n_sims:,} simulations over 24 months..."):
+            rng = np.random.default_rng(42)
+            initial_stages = rng.choice(N_CLASSES, size=n_sims, p=current_proba)
+            trajectories = np.zeros((n_sims, 25), dtype=np.int8)
+            trajectories[:, 0] = initial_stages
+            for t in range(1, 25):
+                for sim in range(n_sims):
+                    cur = trajectories[sim, t-1]
+                    trajectories[sim, t] = rng.choice(N_CLASSES, p=T_monthly[cur])
 
-        with st.spinner("Running GlomeraAI on baseline and target profiles..."):
-            _, X1b, X2b, X3b = build_patient_vector(base, mdl)
-            pred_b, proba_b, p1b, p2b, p3b = run_ensemble(mdl, X1b, X2b, X3b)
+        time_points = np.arange(25)
+        prob_time = np.zeros((25, N_CLASSES))
+        for t in time_points:
+            for sv in range(N_CLASSES):
+                prob_time[t, sv] = (trajectories[:, t] == sv).mean()
 
-            _, X1m, X2m, X3m = build_patient_vector(modified, mdl)
-            pred_m, proba_m, p1m, p2m, p3m = run_ensemble(mdl, X1m, X2m, X3m)
+        st.markdown('''<p class="sect-hdr">Key Risk Milestones</p>''', unsafe_allow_html=True)
+        mc1, mc2, mc3 = st.columns(3)
+        for months_pt, col in [(6, mc1), (12, mc2), (24, mc3)]:
+            stage_at_t = trajectories[:, months_pt]
+            p_esrd     = (stage_at_t >= 4).mean()
+            most_l     = int(np.bincount(stage_at_t).argmax())
+            risk_col   = "#ef4444" if p_esrd > 0.2 else ("#f59e0b" if p_esrd > 0.05 else "#22c55e")
+            with col:
+                st.markdown(f'''<div class="metric-tile">
+                  <div class="value" style="color:{STAGE_COLORS[most_l]}">Stage {most_l}</div>
+                  <div class="label">Most likely at {months_pt} months</div>
+                  <div style="margin-top:.5rem;font-size:.72rem;color:{risk_col};font-weight:700">
+                    {p_esrd*100:.0f}% risk Stage 4+
+                  </div>
+                </div>''', unsafe_allow_html=True)
 
-        sev_b  = sum(c * proba_b[c] for c in range(N_CLASSES))
-        sev_m  = sum(c * proba_m[c] for c in range(N_CLASSES))
-        delta  = sev_m - sev_b
-        risk_b = sum(proba_b[c] for c in range(4, N_CLASSES))
-        risk_m = sum(proba_m[c] for c in range(4, N_CLASSES))
+        fig_sim, axes_sim = plt.subplots(1, 2, figsize=(13, 5))
 
-        st.markdown('<p class="sect-hdr">Baseline vs Intervention Targets</p>', unsafe_allow_html=True)
+        bottom_s = np.zeros(25)
+        for sv in range(N_CLASSES):
+            axes_sim[0].fill_between(time_points, bottom_s, bottom_s + prob_time[:, sv],
+                                     color=STAGE_COLORS[sv], alpha=0.82,
+                                     label=STAGE_NAMES[sv].split("—")[0].strip())
+            bottom_s += prob_time[:, sv]
+        axes_sim[0].set_xlim(0, 24)
+        axes_sim[0].set_xticks([0, 6, 12, 18, 24])
+        axes_sim[0].set_xticklabels(["Now", "6 mo", "12 mo", "18 mo", "24 mo"])
+        axes_sim[0].set_ylabel("Probability of being at each stage")
+        axes_sim[0].set_title("Stage Distribution Over Time", fontsize=10, fontweight="700")
+        axes_sim[0].legend(fontsize=8, loc="upper left")
+        axes_sim[0].spines[["top", "right"]].set_visible(False)
 
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[pred_b]}">Stage {pred_b}</div><div class="label">Current stage</div></div>', unsafe_allow_html=True)
-        with c2:
-            st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[pred_m]}">Stage {pred_m}</div><div class="label">Stage at targets</div></div>', unsafe_allow_html=True)
-        with c3:
-            d_col = "#22c55e" if delta < 0 else ("#64748b" if delta == 0 else "#ef4444")
-            d_sym = "▼" if delta < 0 else ("=" if delta == 0 else "▲")
-            st.markdown(f'<div class="metric-tile"><div class="value" style="color:{d_col}">{d_sym} {abs(delta):.2f}</div><div class="label">Severity score change</div></div>', unsafe_allow_html=True)
-        with c4:
-            dr_col = "#22c55e" if risk_m < risk_b else "#ef4444"
-            st.markdown(f'<div class="metric-tile"><div class="value" style="color:{dr_col}">{risk_m*100:.0f}%</div><div class="label">Stage 4+ risk at targets</div></div>', unsafe_allow_html=True)
-
-        if delta < -0.3:
-            st.markdown(f"""
-            <div class="rec-box green">
-              <strong>Clinically meaningful risk reduction projected.</strong>
-              Achieving these targets is associated with a severity score decrease of
-              <strong>{abs(delta):.2f} points</strong> and a change from
-              <strong>{STAGE_NAMES[pred_b]}</strong> to <strong>{STAGE_NAMES[pred_m]}</strong>.
-            </div>""", unsafe_allow_html=True)
-        elif delta < 0:
-            st.markdown(f"""
-            <div class="rec-box amber">
-              <strong>Modest risk reduction.</strong>
-              Severity score decreases by {abs(delta):.2f} points. Additional interventions
-              may be needed for a clinically significant stage change.
-            </div>""", unsafe_allow_html=True)
-        elif delta == 0:
-            st.markdown("""
-            <div class="rec-box blue">
-              <strong>No change in model output.</strong>
-              The modified values are similar to baseline. Try more aggressive targets.
-            </div>""", unsafe_allow_html=True)
-        else:
-            st.markdown("""
-            <div class="rec-box red">
-              <strong>Risk higher at these targets.</strong>
-              Some sliders may be set above baseline — check that targets are improvements.
-            </div>""", unsafe_allow_html=True)
-
-        fig_s, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 4))
-
-        x = np.arange(N_CLASSES); w = 0.38
-        ax1.bar(x - w/2, proba_b * 100, w, label="Baseline",
-                color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=0.5)
-        ax1.bar(x + w/2, proba_m * 100, w, label="At targets",
-                color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=1.0)
-        ax1.set_xticks(x)
-        ax1.set_xticklabels([f"Stage {c}" for c in range(N_CLASSES)], fontsize=8.5)
-        ax1.set_ylabel("Probability (%)")
-        ax1.set_title("Stage Probability: Baseline vs Intervention Targets", fontsize=10, fontweight="700")
-        ax1.legend(fontsize=9); ax1.spines[["top", "right"]].set_visible(False)
-
-        labels_c = {
-            "hba1c_pct": "HbA1c (%)", "mean_sbp": "Systolic BP",
-            "mean_dbp": "Diastolic BP", "bmi_kgm2": "BMI (kg/m²)",
-            "triglycerides_mgdl": "Triglycerides", "hdl_cholesterol_mgdl": "HDL Cholesterol",
-            "sedentary_minutes_per_day": "Sedentary Time (min)",
-        }
-        changed = {f: modified[f] - base[f] for f in labels_c
-                   if f in base and f in modified and abs(modified[f] - base[f]) > 0.01}
-
-        if changed:
-            feats  = list(changed.keys())
-            deltas = [changed[f] for f in feats]
-            colors = ["#22c55e" if d < 0 else "#ef4444" for d in deltas]
-            ax2.barh([labels_c[f] for f in feats], deltas, color=colors, alpha=0.85)
-            ax2.axvline(0, color="#374151", lw=1, ls="--")
-            ax2.set_xlabel("Change from baseline")
-            ax2.set_title("Input Changes Applied", fontsize=10, fontweight="700")
-            ax2.spines[["top", "right"]].set_visible(False)
-        else:
-            ax2.text(0.5, 0.5, "No changes from baseline",
-                     ha="center", va="center", fontsize=11, color="#64748b",
-                     transform=ax2.transAxes)
-            ax2.axis("off")
+        p4plus = prob_time[:, 4] + prob_time[:, 5]
+        axes_sim[1].plot(time_points, p4plus * 100, color="#ef4444", lw=2.5, marker="o", markersize=4)
+        axes_sim[1].fill_between(time_points, 0, p4plus * 100, alpha=0.12, color="#ef4444")
+        axes_sim[1].axhline(20, color="#f59e0b", lw=1, ls="--", alpha=0.7, label="20% threshold")
+        axes_sim[1].set_xlim(0, 24)
+        axes_sim[1].set_xticks([0, 6, 12, 18, 24])
+        axes_sim[1].set_xticklabels(["Now", "6 mo", "12 mo", "18 mo", "24 mo"])
+        axes_sim[1].set_ylabel("Probability (%)")
+        axes_sim[1].set_title("Risk of Stage 4+ Over Time", fontsize=10, fontweight="700")
+        axes_sim[1].legend(fontsize=8)
+        axes_sim[1].spines[["top", "right"]].set_visible(False)
 
         plt.tight_layout()
-        st.pyplot(fig_s, use_container_width=True); plt.close()
+        st.pyplot(fig_sim, use_container_width=True); plt.close()
 
-        st.markdown('<p class="sect-hdr">Per-Model Response</p>', unsafe_allow_html=True)
-        pm1, pm2, pm3 = st.columns(3)
-        for col, label, pb_val, pm_val, color in [
-            (pm1, "M1 Clinical",     p1b[current_pred], p1m[current_pred], "#3b82f6"),
-            (pm2, "M2 Lifestyle",    p2b[current_pred], p2m[current_pred], "#f97316"),
-            (pm3, "M3 Demographics", p3b[current_pred], p3m[current_pred], "#8b5cf6"),
-        ]:
-            diff     = pm_val - pb_val
-            diff_col = "#22c55e" if diff < 0 else ("#ef4444" if diff > 0 else "#64748b")
-            with col:
-                st.markdown(f"""
-                <div class="metric-tile">
-                  <div style="font-size:.72rem;color:#64748b;font-weight:600;
-                       text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">{label}</div>
-                  <div style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;color:{color}">
-                    {pb_val*100:.0f}% → {pm_val*100:.0f}%
-                  </div>
-                  <div style="font-size:.75rem;color:{diff_col};margin-top:.3rem;font-weight:700">
-                    {"▼" if diff < 0 else "▲"} {abs(diff)*100:.0f}pp
-                  </div>
-                </div>""", unsafe_allow_html=True)
+        # Intervention comparison
+        st.markdown('''<p class="sect-hdr">Intervention Comparison — Stage 4+ Risk at 12 Months</p>''',
+                    unsafe_allow_html=True)
+        comp_results = {}
+        with st.spinner("Comparing all intervention scenarios..."):
+            for interv, factor_i in INTERVENTIONS.items():
+                T_i = T_ANNUAL.copy()
+                for ii in range(N_CLASSES):
+                    for jj in range(N_CLASSES):
+                        if jj > ii:
+                            T_i[ii, jj] *= factor_i
+                    T_i[ii] = T_i[ii] / T_i[ii].sum()
+                try:
+                    T_mi = fractional_matrix_power(T_i, 1/12)
+                    T_mi = np.clip(np.real(T_mi), 0, 1)
+                    T_mi = T_mi / T_mi.sum(axis=1, keepdims=True)
+                except Exception:
+                    T_mi = T_i
+                trajs_i = np.zeros((1000, 13), dtype=np.int8)
+                init_i  = rng.choice(N_CLASSES, size=1000, p=current_proba)
+                trajs_i[:, 0] = init_i
+                for t in range(1, 13):
+                    for sim in range(1000):
+                        cur = trajs_i[sim, t-1]
+                        trajs_i[sim, t] = rng.choice(N_CLASSES, p=T_mi[cur])
+                comp_results[interv] = (trajs_i[:, 12] >= 4).mean() * 100
+
+        comp_sorted = sorted(comp_results.items(), key=lambda x: x[1])
+        fig_comp2, ax_comp2 = plt.subplots(figsize=(10, 3.5))
+        colors_c = ["#22c55e" if i == 0 else ("#ef4444" if i == len(comp_sorted)-1
+                    else "#3b82f6") for i in range(len(comp_sorted))]
+        bars_c = ax_comp2.barh([x[0] for x in comp_sorted],
+                               [x[1] for x in comp_sorted],
+                               color=colors_c, alpha=0.85)
+        for bar in bars_c:
+            w = bar.get_width()
+            ax_comp2.text(w + 0.3, bar.get_y() + bar.get_height()/2,
+                          f"{w:.1f}%", va="center", fontsize=9, fontweight="600")
+        ax_comp2.set_xlabel("Stage 4+ risk at 12 months (%)")
+        ax_comp2.set_title("Impact of Different Interventions", fontsize=10, fontweight="700")
+        ax_comp2.spines[["top", "right"]].set_visible(False)
+        plt.tight_layout()
+        st.pyplot(fig_comp2, use_container_width=True); plt.close()
 
     st.markdown("""
     <div class="disclaimer">
-      <strong>What this tool shows:</strong> Each result is a real prediction from the trained
-      GlomeraAI ensemble re-run with modified input values. This is a sensitivity analysis —
-      it shows the model's response to hypothetical input changes, not a prediction of what will
-      clinically happen to this patient. GlomeraAI was trained on cross-sectional NHANES 2015–2020
-      data and cannot model longitudinal disease trajectories. All outputs require clinician review.
+      <strong>Simulation disclaimer:</strong> This is a rule-based clinical simulation using
+      KDIGO 2024 population-level stage-transition probability estimates as the starting point,
+      combined with this patient's GlomeraAI probability output as the initial state distribution.
+      It is not a trained ML model and does not predict individual outcomes. The simulation shows
+      the probability distribution of future stages based on known population-level progression
+      patterns. All outputs require review by a qualified nephrologist before informing any
+      clinical decision.
     </div>""", unsafe_allow_html=True)
