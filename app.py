@@ -1,9 +1,13 @@
 """
-GlomeraAI Clinical Intelligence Platform
-Multi-Stage Diabetic Nephropathy Risk Assessment & Clinical Decision Support
+GlomeraAI-DKD Clinical Decision Support System
+Multimodel, Explainable and Fair AI for Predicting Diabetic Nephropathy Progression
 """
 
-import io, warnings, pickle, requests
+import io
+import warnings
+import pickle
+import requests
+
 import streamlit as st
 import numpy as np
 import pandas as pd
@@ -21,1226 +25,1241 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# ── Design System ──────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=Playfair+Display:wght@700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
 
 [data-testid="stSidebarNav"] { display: none !important; }
 
-:root {
-    --navy:   #0b1426;
-    --navy2:  #111d35;
-    --blue:   #1a6efc;
-    --teal:   #0cc8b0;
-    --slate:  #8496b0;
-    --light:  #c8d8e8;
-    --border: rgba(255,255,255,0.07);
-    --card:   rgba(255,255,255,0.04);
-    --white:  #f0f4ff;
+html, body, [class*="css"] {
+    font-family: 'Inter', sans-serif;
+    background: #f8fafc;
 }
 
-/* ── Global reset ── */
-html, body { background: var(--navy) !important; color: var(--white) !important; }
-[class*="css"] { font-family: 'DM Sans', sans-serif !important; }
-
-/* ── Main app background and text ── */
-.main, section[data-testid="stMain"] { background: var(--navy) !important; }
-.main .block-container { padding: 1.5rem 2.5rem; max-width: 1280px; color: var(--white); }
-
-/* All paragraph/text in main area */
-.main p, .main span, .main div, .main li, .main td, .main th,
-section[data-testid="stMain"] p,
-section[data-testid="stMain"] span { color: var(--light); }
-
-/* Headings stay bright */
-.main h1, .main h2, .main h3, .main h4, .main h5,
-section[data-testid="stMain"] h1,
-section[data-testid="stMain"] h2,
-section[data-testid="stMain"] h3 { color: var(--white) !important; }
-
-/* ── Sidebar ── */
-div[data-testid="stSidebarContent"] {
-    background: var(--navy2) !important;
-    border-right: 1px solid var(--border);
+.app-header {
+    background: #fff;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 1rem 2rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin: -1rem -1rem 1.5rem -1rem;
+    position: relative;
 }
-div[data-testid="stSidebarContent"] *           { color: #8496b0 !important; }
-div[data-testid="stSidebarContent"] strong       { color: #e2eaf5 !important; }
-div[data-testid="stSidebarContent"] h3           { color: var(--white) !important; font-family: 'Playfair Display', serif !important; }
-div[data-testid="stSidebarContent"] .stButton > button {
-    width: 100%; text-align: left;
-    background: transparent; border: none;
-    border-radius: 8px; padding: .5rem .85rem;
-    font-size: .85rem; font-weight: 500;
-    color: #8496b0 !important; transition: all .15s;
+.app-header::before {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #0ea5e9, #6366f1, #10b981);
 }
-div[data-testid="stSidebarContent"] .stButton > button:hover {
-    background: rgba(255,255,255,.06) !important;
-    color: #e2eaf5 !important; border: none !important;
+.app-header-title {
+    font-size: 1.3rem;
+    font-weight: 800;
+    color: #0f172a;
+    margin: 0;
+    letter-spacing: -0.02em;
 }
-div[data-testid="stSidebarContent"] .nav-active .stButton > button {
-    background: rgba(26,110,252,.18) !important;
-    color: #7cb3ff !important; font-weight: 700 !important;
-    border-left: 3px solid var(--blue) !important;
+.app-header-sub {
+    font-size: 0.72rem;
+    color: #64748b;
+    font-family: 'JetBrains Mono', monospace;
+    margin: 0;
 }
 
-/* ── Labels (all input labels) ── */
-label,
-div[data-testid="stWidgetLabel"] p,
-div[data-testid="stWidgetLabel"] span,
-.stSlider label, .stNumberInput label,
-.stSelectbox label, .stTextInput label,
-.stTextArea label, .stCheckbox label,
-.stRadio label { color: #a0b4cc !important; font-size: .82rem !important; font-weight: 500 !important; }
-
-/* ── Number inputs ── */
-input[type="number"], input[type="text"], textarea {
-    background: rgba(255,255,255,.06) !important;
-    border: 1px solid rgba(255,255,255,.12) !important;
-    color: var(--white) !important;
-    border-radius: 8px !important;
+.metric-tile {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
+    padding: 1.1rem 1.4rem;
+    text-align: center;
+    transition: transform .12s, box-shadow .12s;
 }
-input[type="number"]:focus, input[type="text"]:focus {
-    border-color: var(--blue) !important;
-    box-shadow: 0 0 0 2px rgba(26,110,252,.2) !important;
+.metric-tile:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,.08);
 }
-
-/* ── Selectbox ── */
-div[data-testid="stSelectbox"] div[data-baseweb="select"] > div {
-    background: rgba(255,255,255,.06) !important;
-    border: 1px solid rgba(255,255,255,.12) !important;
-    border-radius: 8px !important;
+.metric-tile .value {
+    font-size: 2.1rem;
+    font-weight: 800;
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: -0.03em;
+    line-height: 1;
+    margin-bottom: .3rem;
 }
-div[data-testid="stSelectbox"] div[data-baseweb="select"] span,
-div[data-testid="stSelectbox"] div[data-baseweb="select"] div {
-    color: var(--white) !important;
-    background: transparent !important;
-}
-/* Dropdown menu */
-ul[data-testid="stSelectboxVirtualDropdown"],
-div[role="listbox"],
-div[data-baseweb="popover"] ul {
-    background: #1a2744 !important;
-    border: 1px solid rgba(255,255,255,.1) !important;
-    border-radius: 8px !important;
-}
-div[role="option"], li[role="option"] {
-    color: var(--white) !important;
-    background: transparent !important;
-}
-div[role="option"]:hover, li[role="option"]:hover {
-    background: rgba(26,110,252,.2) !important;
+.metric-tile .label {
+    font-size: .7rem;
+    color: #64748b;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    font-weight: 600;
 }
 
-/* ── Slider ── */
-div[data-testid="stSlider"] { color: var(--light) !important; }
-div[data-testid="stSlider"] p { color: var(--light) !important; }
-div[data-testid="stSlider"] div[data-testid="stTickBarMin"],
-div[data-testid="stSlider"] div[data-testid="stTickBarMax"] { color: #8496b0 !important; }
-div[data-testid="stThumbValue"] { color: var(--white) !important; }
-/* Slider track */
-div[data-baseweb="slider"] div[role="slider"] { background: var(--blue) !important; }
-
-/* ── Markdown / write text ── */
-div[data-testid="stMarkdownContainer"] p,
-div[data-testid="stMarkdownContainer"] li,
-div[data-testid="stMarkdownContainer"] span,
-div[data-testid="stText"] { color: var(--light) !important; }
-div[data-testid="stMarkdownContainer"] strong { color: var(--white) !important; }
-div[data-testid="stMarkdownContainer"] a { color: #7cb3ff !important; }
-
-/* ── st.write / st.text ── */
-div[data-testid="stText"] p { color: var(--light) !important; }
-
-/* ── Caption ── */
-div[data-testid="stCaptionContainer"] p { color: #8496b0 !important; font-size: .75rem !important; }
-
-/* ── Metrics ── */
-div[data-testid="stMetric"]       { color: var(--white) !important; }
-div[data-testid="stMetricLabel"]  p { color: #8496b0 !important; font-size: .75rem !important; }
-div[data-testid="stMetricValue"]  div { color: var(--white) !important; font-family: 'DM Mono', monospace !important; }
-div[data-testid="stMetricDelta"]  div { color: #10b981 !important; }
-
-/* ── Dataframe ── */
-div[data-testid="stDataFrame"] {
-    background: rgba(255,255,255,.03) !important;
-    border-radius: 10px; border: 1px solid var(--border) !important;
-}
-div[data-testid="stDataFrame"] th,
-div[data-testid="stDataFrame"] td { color: var(--light) !important; }
-div[data-testid="stDataFrame"] thead th { color: var(--white) !important; background: rgba(255,255,255,.06) !important; }
-
-/* ── Tabs ── */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 4px; background: rgba(255,255,255,.04);
-    border-radius: 10px; padding: 4px;
-    border: none !important;
-}
-.stTabs [data-baseweb="tab"] {
-    border-radius: 8px; font-size: .82rem; font-weight: 600;
-    padding: .45rem 1.1rem; color: #8496b0 !important;
-    background: transparent !important;
-}
-.stTabs [data-baseweb="tab"][aria-selected="true"] {
-    background: rgba(26,110,252,.25) !important;
-    color: #7cb3ff !important;
-}
-.stTabs [data-baseweb="tab-panel"] { color: var(--light) !important; }
-
-/* ── Expander ── */
-div[data-testid="stExpander"] summary span { color: var(--light) !important; }
-div[data-testid="stExpander"] { border: 1px solid var(--border) !important; border-radius: 8px !important; }
-
-/* ── Checkbox / Radio ── */
-div[data-testid="stCheckbox"] span,
-div[data-testid="stRadio"] span { color: var(--light) !important; }
-
-/* ── Alert / info / warning / error boxes ── */
-div[data-testid="stAlert"] {
-    border-radius: 10px !important;
-    border-left: 4px solid !important;
-}
-div[data-testid="stAlert"][kind="info"],
-div[data-testid="stAlert"] {
-    background: rgba(26,110,252,.08) !important;
-    border-color: rgba(26,110,252,.4) !important;
-    color: #a0c4ff !important;
-}
-div[data-testid="stAlert"] p,
-div[data-testid="stAlert"] span { color: #a0c4ff !important; }
-div[data-testid="stAlert"][kind="warning"] { background: rgba(245,158,11,.08) !important; border-color: rgba(245,158,11,.4) !important; }
-div[data-testid="stAlert"][kind="error"]   { background: rgba(239,68,68,.08) !important; border-color: rgba(239,68,68,.4) !important; }
-div[data-testid="stAlert"][kind="success"] { background: rgba(16,185,129,.08) !important; border-color: rgba(16,185,129,.4) !important; }
-
-/* ── Spinner ── */
-div[data-testid="stSpinner"] p,
-div[data-testid="stSpinner"] span { color: #8496b0 !important; }
-
-/* ── Divider ── */
-hr { border-color: var(--border) !important; margin: 1.5rem 0 !important; }
-
-/* ── Buttons ── */
-.stButton > button {
-    background: rgba(255,255,255,.06) !important;
-    border: 1px solid var(--border) !important;
-    border-radius: 10px !important;
-    color: var(--light) !important;
-    font-weight: 500 !important;
-    transition: all .2s !important;
-}
-.stButton > button:hover {
-    background: rgba(255,255,255,.1) !important;
-    border-color: rgba(255,255,255,.2) !important;
-    color: var(--white) !important;
-}
-.stButton > button[kind="primary"],
-button[kind="primary"] {
-    background: linear-gradient(135deg, #1a6efc, #0ea5e9) !important;
-    border: none !important;
-    color: #fff !important;
-    font-weight: 700 !important;
-    box-shadow: 0 4px 20px rgba(26,110,252,.35) !important;
-}
-.stButton > button[kind="primary"]:hover {
-    transform: translateY(-1px) !important;
-    box-shadow: 0 6px 24px rgba(26,110,252,.5) !important;
-}
-
-/* ── Select slider ── */
-div[data-testid="stSlider"] div[class*="stSlider"] span { color: var(--light) !important; }
-
-/* ── Platform header ── */
-.platform-header {
-    display: flex; align-items: center; gap: 1.2rem;
-    padding: 1.2rem 1.8rem;
-    background: linear-gradient(135deg, rgba(26,110,252,.12), rgba(12,200,176,.08));
-    border: 1px solid var(--border);
-    border-radius: 16px; margin-bottom: 1.8rem;
-    position: relative; overflow: hidden;
-}
-.platform-name {
-    font-family: 'Playfair Display', serif;
-    font-size: 1.6rem; font-weight: 800;
-    color: var(--white); margin: 0; letter-spacing: -.02em;
-}
-.platform-sub {
-    font-size: .72rem; color: var(--slate);
-    font-family: 'DM Mono', monospace;
-    letter-spacing: .06em; margin: .15rem 0 0;
-}
-.platform-badge {
-    margin-left: auto;
-    background: rgba(12,200,176,.15); border: 1px solid rgba(12,200,176,.3);
-    border-radius: 20px; padding: .3rem .9rem;
-    font-size: .72rem; font-weight: 600;
-    color: var(--teal); font-family: 'DM Mono', monospace;
-}
-
-/* ── Cards ── */
-.glass-card {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 14px; padding: 1.3rem 1.5rem; margin-bottom: 1rem;
-    color: var(--light);
-}
-.stage-result-card {
-    border-radius: 18px; padding: 2rem 2.2rem;
-    margin-bottom: 1.5rem; border: 1px solid;
-    position: relative; overflow: hidden;
-}
-
-/* ── KPI tiles ── */
-.kpi-tile {
-    background: var(--card); border: 1px solid var(--border);
-    border-radius: 12px; padding: 1.1rem 1.3rem; text-align: center;
-}
-.kpi-val {
-    font-family: 'DM Mono', monospace;
-    font-size: 1.9rem; font-weight: 700; line-height: 1; margin-bottom: .3rem;
-    color: var(--white);
-}
-.kpi-lbl {
-    font-size: .68rem; color: var(--slate);
-    text-transform: uppercase; letter-spacing: .1em; font-weight: 600;
-}
-
-/* ── Section headers ── */
 .sect-hdr {
-    font-size: .72rem; font-weight: 700; color: var(--teal);
-    text-transform: uppercase; letter-spacing: .12em;
-    padding-left: .7rem; border-left: 3px solid var(--teal);
-    margin: 1.6rem 0 .9rem;
+    font-size: .78rem;
+    font-weight: 700;
+    color: #0f172a;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    border-left: 3px solid #0ea5e9;
+    padding-left: .6rem;
+    margin: 1.5rem 0 .8rem;
 }
 
-/* ── Rec blocks ── */
-.rec-block {
-    border-radius: 12px; padding: 1rem 1.3rem;
-    margin: .8rem 0; border-left: 4px solid;
-    font-size: .86rem; line-height: 1.7; color: var(--light);
+.verdict-yes {
+    background: #fff1f2;
+    border: 2px solid #f43f5e;
+    border-radius: 14px;
+    padding: 1.3rem 1.6rem;
+    margin: 1rem 0;
 }
-.rec-block strong { color: var(--white) !important; }
-.rec-block.green  { background: rgba(16,185,129,.08); border-color: #10b981; }
-.rec-block.amber  { background: rgba(245,158,11,.08);  border-color: #f59e0b; }
-.rec-block.orange { background: rgba(249,115,22,.08);  border-color: #f97316; }
-.rec-block.red    { background: rgba(239,68,68,.08);   border-color: #ef4444; }
-.rec-block.purple { background: rgba(168,85,247,.08);  border-color: #a855f7; }
-.rec-block.slate  { background: rgba(30,41,59,.5);     border-color: #475569; }
-.rec-block.blue   { background: rgba(26,110,252,.08);  border-color: #1a6efc; }
-.rec-block.teal   { background: rgba(12,200,176,.08);  border-color: #0cc8b0; }
-
-/* ── Verdict cards ── */
-.verdict-card {
-    border-radius: 16px; padding: 1.5rem 1.8rem; margin: 1rem 0; border: 1px solid;
+.verdict-no {
+    background: #f0fdf4;
+    border: 2px solid #22c55e;
+    border-radius: 14px;
+    padding: 1.3rem 1.6rem;
+    margin: 1rem 0;
 }
-.verdict-card.danger  { background: rgba(239,68,68,.07);   border-color: rgba(239,68,68,.3); }
-.verdict-card.warning { background: rgba(245,158,11,.07);  border-color: rgba(245,158,11,.3); }
-.verdict-card.safe    { background: rgba(16,185,129,.07);  border-color: rgba(16,185,129,.3); }
-.verdict-title { font-size: 1.1rem; font-weight: 800; margin-bottom: .5rem; color: var(--white); }
-.verdict-body  { font-size: .87rem; color: var(--slate); line-height: 1.7; }
-
-/* ── Domain badges ── */
-.domain-badge {
-    border-radius: 12px; padding: .85rem 1.1rem;
-    margin-bottom: .7rem; border: 1px solid var(--border); border-left: 4px solid;
+.verdict-watch {
+    background: #fffbeb;
+    border: 2px solid #f59e0b;
+    border-radius: 14px;
+    padding: 1.3rem 1.6rem;
+    margin: 1rem 0;
 }
-.domain-badge.rf  { border-left-color: #1a6efc; background: rgba(26,110,252,.06); }
-.domain-badge.xgb { border-left-color: #f97316; background: rgba(249,115,22,.06); }
-.domain-badge.lr  { border-left-color: #a855f7; background: rgba(168,85,247,.06); }
-.domain-badge h4  { margin: 0 0 .3rem; font-size: .88rem; font-weight: 700; color: var(--white); }
-.domain-badge p   { margin: 0; font-size: .78rem; color: var(--slate); }
+.verdict-title {
+    font-size: 1.25rem;
+    font-weight: 800;
+    margin-bottom: .5rem;
+}
+.verdict-body {
+    font-size: .88rem;
+    line-height: 1.6;
+}
 
-/* ── Stepper ── */
-.stepper { display: flex; align-items: center; justify-content: center; padding: .5rem 0 1.8rem; }
+.rec-box {
+    border-radius: 12px;
+    padding: 1rem 1.3rem;
+    margin: .8rem 0;
+    border-left: 4px solid;
+    font-size: .87rem;
+    line-height: 1.6;
+}
+.rec-box.blue   { background: #eff6ff; border-color: #3b82f6; color: #1e3a5f; }
+.rec-box.green  { background: #f0fdf4; border-color: #22c55e; color: #14532d; }
+.rec-box.amber  { background: #fffbeb; border-color: #f59e0b; color: #78350f; }
+.rec-box.red    { background: #fff1f2; border-color: #f43f5e; color: #881337; }
+.rec-box.purple { background: #faf5ff; border-color: #8b5cf6; color: #3b0764; }
+.rec-box.slate  { background: #f1f5f9; border-color: #475569; color: #1e293b; }
+.rec-box.teal   { background: #f0fdfa; border-color: #14b8a6; color: #134e4a; }
+
+.model-badge {
+    border-radius: 12px;
+    padding: 1rem 1.2rem;
+    margin-bottom: .7rem;
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid;
+}
+.model-badge.rf  { border-left-color: #3b82f6; background: #f8fbff; }
+.model-badge.xgb { border-left-color: #f97316; background: #fffaf5; }
+.model-badge.lr  { border-left-color: #8b5cf6; background: #faf8ff; }
+.model-badge h4  { margin: 0 0 .35rem; font-size: .9rem; font-weight: 700; }
+.model-badge p   { margin: 0; font-size: .8rem; color: #475569; }
+
+.stepper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: .5rem 0 1.5rem;
+}
+.step-item { display: flex; align-items: center; }
 .step-dot {
-    width: 32px; height: 32px; border-radius: 50%;
+    width: 30px; height: 30px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
     font-size: .78rem; font-weight: 700;
 }
-.step-dot.done   { background: #0cc8b0; color: #0b1426; }
-.step-dot.active { background: #1a6efc; color: #fff; box-shadow: 0 0 0 5px rgba(26,110,252,.2); }
-.step-dot.todo   { background: rgba(255,255,255,.08); color: #8496b0; }
-.step-label { font-size: .67rem; color: #8496b0; margin-top: .35rem; text-align: center; font-weight: 600; }
-.step-line { width: 50px; height: 2px; background: rgba(255,255,255,.08); margin: 0 4px; }
-.step-line.done { background: #0cc8b0; }
+.step-dot.done   { background: #22c55e; color: #fff; }
+.step-dot.active { background: #0ea5e9; color: #fff; box-shadow: 0 0 0 4px #bae6fd; }
+.step-dot.todo   { background: #e2e8f0; color: #94a3b8; }
+.step-label { font-size: .68rem; color: #64748b; margin-top: .3rem; text-align: center; font-weight: 500; }
+.step-line { width: 44px; height: 2px; background: #e2e8f0; margin: 0 4px; }
+.step-line.done { background: #22c55e; }
 
-/* ── Chips ── */
 .chip {
-    display: inline-block; padding: .22rem .75rem;
-    border-radius: 20px; font-size: .71rem; font-weight: 700; margin: .15rem;
+    display: inline-block;
+    padding: .2rem .65rem;
+    border-radius: 20px;
+    font-size: .72rem;
+    font-weight: 600;
+    margin: .15rem;
 }
-.chip.green  { background: rgba(16,185,129,.15); color: #34d399; border: 1px solid rgba(16,185,129,.3); }
-.chip.amber  { background: rgba(245,158,11,.15);  color: #fbbf24; border: 1px solid rgba(245,158,11,.3); }
-.chip.red    { background: rgba(239,68,68,.15);   color: #f87171; border: 1px solid rgba(239,68,68,.3); }
-.chip.blue   { background: rgba(26,110,252,.15);  color: #7cb3ff; border: 1px solid rgba(26,110,252,.3); }
-.chip.purple { background: rgba(168,85,247,.15);  color: #c084fc; border: 1px solid rgba(168,85,247,.3); }
+.chip.green  { background: #dcfce7; color: #166534; }
+.chip.red    { background: #fee2e2; color: #991b1b; }
+.chip.blue   { background: #dbeafe; color: #1e40af; }
+.chip.amber  { background: #fef3c7; color: #92400e; }
+.chip.purple { background: #ede9fe; color: #5b21b6; }
 
-/* ── Disclaimer ── */
+div[data-testid="stSidebarContent"] { background: #0f172a !important; }
+div[data-testid="stSidebarContent"] .stMarkdown,
+div[data-testid="stSidebarContent"] label,
+div[data-testid="stSidebarContent"] p { color: #94a3b8 !important; }
+div[data-testid="stSidebarContent"] h3 { color: #38bdf8 !important; }
+div[data-testid="stSidebarContent"] h4 { color: #e2e8f0 !important; }
+
+div[data-testid="stSidebarContent"] .stButton > button {
+    width: 100%;
+    text-align: left;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: .45rem .75rem;
+    font-size: .84rem;
+    font-weight: 500;
+    color: #94a3b8;
+    transition: background .15s, color .15s;
+    cursor: pointer;
+}
+div[data-testid="stSidebarContent"] .stButton > button:hover {
+    background: rgba(255,255,255,.06) !important;
+    color: #e2e8f0 !important;
+    border: none !important;
+}
+div[data-testid="stSidebarContent"] .nav-active .stButton > button {
+    background: rgba(14,165,233,.18) !important;
+    color: #38bdf8 !important;
+    font-weight: 700 !important;
+    border-left: 3px solid #38bdf8 !important;
+}
+
+.stTabs [data-baseweb="tab-list"] {
+    gap: 6px;
+    background: #f1f5f9;
+    border-radius: 10px;
+    padding: 4px;
+}
+.stTabs [data-baseweb="tab"] {
+    border-radius: 8px;
+    font-size: .83rem;
+    font-weight: 600;
+    padding: .45rem 1rem;
+    color: #64748b;
+}
+.stTabs [data-baseweb="tab"][aria-selected="true"] {
+    background: #fff !important;
+    color: #0f172a !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
 .disclaimer {
-    background: rgba(255,255,255,.03); border: 1px solid var(--border);
-    border-radius: 10px; padding: .9rem 1.2rem;
-    font-size: .74rem; color: #8496b0;
-    margin-top: 2rem; line-height: 1.7;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    font-size: .76rem;
+    color: #64748b;
+    margin-top: 1.5rem;
+    line-height: 1.6;
 }
-.disclaimer strong { color: #f87171; }
 
-/* ── Select-slider (st.select_slider) ── */
-div[data-testid="stSelectSlider"] span,
-div[data-testid="stSelectSlider"] p { color: var(--light) !important; }
-
-/* ── Multiselect ── */
-div[data-testid="stMultiSelect"] span { color: var(--light) !important; }
-span[data-baseweb="tag"] { background: rgba(26,110,252,.25) !important; color: #7cb3ff !important; }
-
-/* ── Column container text pass-through ── */
-div[data-testid="stHorizontalBlock"] p,
-div[data-testid="stVerticalBlock"] p { color: var(--light) !important; }
-
-/* ── st.info context ── */
-div.stAlert p { color: #a0c4ff !important; }
-
-/* ── Tooltip ── */
-div[data-testid="stTooltipIcon"] { color: #8496b0 !important; }
-div[data-baseweb="tooltip"] div { background: #1a2744 !important; color: var(--white) !important; border-radius: 8px !important; }
+.driver-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: .5rem .8rem;
+    border-radius: 8px;
+    margin-bottom: .4rem;
+    font-size: .84rem;
+}
+.driver-row.risk { background: #fff1f2; }
+.driver-row.prot { background: #f0fdf4; }
 </style>
 """, unsafe_allow_html=True)
 
-# ── Matplotlib dark theme ──────────────────────────────────────────────────────
-plt.rcParams.update({
-    "figure.facecolor":  "#0b1426",
-    "axes.facecolor":    "#111d35",
-    "axes.edgecolor":    "#1e2d4a",
-    "axes.labelcolor":   "#8496b0",
-    "xtick.color":       "#8496b0",
-    "ytick.color":       "#8496b0",
-    "text.color":        "#f0f4ff",
-    "grid.color":        "#1e2d4a",
-    "grid.alpha":        0.6,
-    "font.family":       "sans-serif",
-    "figure.dpi":        120,
-})
-
-# ── Constants ──────────────────────────────────────────────────────────────────
 N_CLASSES = 6
 
 STAGE_NAMES = {
     0: "No DKD",
     1: "Stage 1 — Microalbuminuria",
-    2: "Stage 2 — Macroalbuminuria / Mild GFR Decrease",
+    2: "Stage 2 — Mild GFR Decrease",
     3: "Stage 3 — Moderate GFR Decrease",
     4: "Stage 4 — Severe GFR Decrease",
     5: "Stage 5 — Kidney Failure",
 }
 STAGE_COLORS = {
-    0: "#10b981", 1: "#f59e0b", 2: "#f97316",
-    3: "#ef4444", 4: "#a855f7", 5: "#94a3b8",
+    0: "#22c55e", 1: "#f59e0b", 2: "#f97316",
+    3: "#ef4444", 4: "#8b5cf6", 5: "#0f172a",
 }
-STAGE_RECS = {
+STAGE_BG = {
+    0: "#f0fdf4", 1: "#fffbeb", 2: "#fff7ed",
+    3: "#fff1f2", 4: "#faf5ff", 5: "#f1f5f9",
+}
+
+STAGE_RECOMMENDATIONS = {
     0: {
         "headline": "No diabetic kidney disease detected at this time.",
         "actions": [
-            "Continue annual kidney monitoring (eGFR + urine albumin)",
-            "Maintain HbA1c below 7% and blood pressure below 130/80 mmHg",
-            "Healthy weight, diet, and regular physical activity",
+            "Continue annual kidney monitoring (eGFR + urine albumin test)",
+            "Keep blood sugar well controlled (HbA1c target below 7%)",
+            "Maintain blood pressure below 130/80 mmHg",
+            "Encourage healthy weight, diet, and regular activity",
         ],
         "urgency": "Routine follow-up",
-        "color": "green",
     },
     1: {
         "headline": "Early kidney damage — protein leaking into urine detected.",
         "actions": [
-            "Initiate ACE inhibitor or ARB to protect kidney filtration",
-            "Target blood pressure below 130/80 mmHg",
-            "Tighten glycaemic control — HbA1c target below 7%",
+            "Start blood pressure medication (ACE inhibitor or ARB) to protect kidneys",
+            "Set blood pressure target below 130/80 mmHg",
+            "Tighten blood sugar control (HbA1c below 7%)",
             "Repeat urine albumin test in 3 months to confirm",
         ],
         "urgency": "Within 4 weeks",
-        "color": "amber",
     },
     2: {
-        "headline": "Macroalbuminuria or mild GFR decline (eGFR 45–59 or UACR >300 mg/g).",
+        "headline": "Kidney filtering function is beginning to decline.",
         "actions": [
-            "Refer to a nephrologist for specialist assessment",
-            "Reduce dietary protein to 0.8 g/kg/day",
-            "Review nephrotoxic medications",
-            "Optimise blood pressure and glycaemic control",
+            "Refer to a kidney specialist (nephrologist)",
+            "Reduce dietary protein intake (0.8 g per kg body weight per day)",
+            "Review and adjust any medications that may strain the kidneys",
+            "Optimise blood pressure and blood sugar control",
         ],
         "urgency": "Within 2–4 weeks",
-        "color": "orange",
     },
     3: {
-        "headline": "Significant kidney function loss — specialist care required now.",
+        "headline": "Significant kidney function loss — specialist care needed now.",
         "actions": [
-            "Urgent nephrology co-management",
-            "Begin discussion of kidney replacement options",
-            "Investigate and treat renal anaemia",
-            "Strict fluid, sodium, and potassium management",
+            "Urgent nephrology co-management required",
+            "Begin discussions about future kidney replacement options",
+            "Check and treat anaemia (low haemoglobin)",
+            "Strict fluid, salt, and potassium management",
         ],
         "urgency": "Urgent — within 1 week",
-        "color": "red",
     },
     4: {
-        "headline": "Severe kidney function loss — prepare for replacement therapy.",
+        "headline": "Severe kidney function loss — prepare for kidney replacement.",
         "actions": [
-            "Plan dialysis access (arteriovenous fistula creation)",
-            "Multidisciplinary team: nephrology, dietitian, social work",
+            "Plan for dialysis access surgery (fistula creation)",
+            "Strict fluid and electrolyte management with dietitian",
+            "Full multidisciplinary team care (nephrology, dietitian, social work)",
             "Transplant evaluation referral",
-            "Strict fluid and electrolyte management",
         ],
         "urgency": "Immediate specialist review",
-        "color": "purple",
     },
     5: {
         "headline": "Kidney failure — renal replacement therapy required.",
         "actions": [
-            "Initiate dialysis or transplant evaluation",
+            "Initiate dialysis or arrange kidney transplant evaluation",
             "Full renal replacement therapy pathway",
-            "Intensive symptom and multidisciplinary support",
+            "Intensive symptom management and multidisciplinary support",
             "Palliative care consultation if appropriate",
         ],
-        "urgency": "Emergency / Immediate",
-        "color": "slate",
+        "urgency": "Emergency/Immediate",
     },
 }
 
 CLINICAL_CONTEXT = {
-    "log_urine_albumin_ugl":         ("Urine Albumin",       "expm1", "Protein leaking into urine — primary early damage marker"),
-    "log_serum_creatinine_mgdl":     ("Serum Creatinine",    "expm1", "Waste product in blood — rises when kidneys cannot filter"),
-    "log_bun_mgdl":                  ("Blood Urea (BUN)",    "expm1", "Blood urea nitrogen — rises when kidneys are failing"),
-    "hba1c_pct":                     ("HbA1c",               None,    "3-month blood glucose average — higher means poorer diabetes control"),
-    "hemoglobin_gdl":                ("Haemoglobin",         None,    "Anaemia develops as kidney function declines"),
-    "hematocrit_pct":                ("Haematocrit",         None,    "Low values signal kidney-related anaemia"),
-    "uric_acid_mgdl":                ("Uric Acid",           None,    "Elevated levels accelerate kidney damage"),
-    "log_crp_mgL":                   ("CRP",                 "expm1", "Inflammation marker — drives kidney disease progression"),
-    "mean_sbp":                      ("Systolic BP",         None,    "High blood pressure directly damages kidney blood vessels"),
-    "mean_dbp":                      ("Diastolic BP",        None,    "Elevated pressure adds strain to kidney filters"),
-    "bmi_kgm2":                      ("BMI",                 None,    "Obesity increases kidney disease risk"),
-    "log_triglycerides_mgdl":        ("Triglycerides",       "expm1", "High blood fats worsen kidney disease outlook"),
-    "hdl_cholesterol_mgdl":          ("HDL Cholesterol",     None,    "Low HDL independently predicts kidney decline"),
-    "log_insulin_uiml":              ("Insulin Level",       "expm1", "High fasting insulin signals insulin resistance"),
-    "serum_albumin_gdl":             ("Serum Albumin",       None,    "Low albumin indicates poor nutrition from kidney disease"),
-    "urine_creatinine_mgdl":         ("Urine Creatinine",    None,    "Used to calculate urine albumin ratio"),
-    "kidney_disease_history":        ("Kidney Disease Hx",   None,    "Previous kidney disease strongly predicts DKD"),
-    "hypertension_diagnosed":        ("Hypertension",        None,    "Uncontrolled blood pressure accelerates kidney damage"),
-    "kidney_stone_history":          ("Kidney Stone Hx",     None,    "Associated with CKD progression"),
-    "insulin_use":                   ("Insulin Use",         None,    "Signals advanced diabetes requiring insulin"),
-    "phosphorus_mg_day":             ("Dietary Phosphorus",  None,    "High phosphorus intake linked to kidney decline"),
-    "potassium_mg_day":              ("Dietary Potassium",   None,    "Potassium management critical in kidney disease"),
-    "current_smoker_status":         ("Smoking",             None,    "Smoking damages kidney blood vessels"),
-    "vigorous_leisure_activity":     ("Physical Activity",   None,    "Protective — regular exercise reduces kidney disease risk"),
-    "age_years":                     ("Patient Age",         None,    "Older age is a primary kidney disease risk factor"),
-    "race_ethnicity_code":           ("Ethnicity",           None,    "Ethnic differences in kidney disease risk"),
-    "sex_code":                      ("Sex",                 None,    "Sex differences in kidney disease risk trajectory"),
-    "heart_attack":                  ("Heart Attack Hx",     None,    "Cardiovascular history worsens prognosis"),
-    "stroke_ever":                   ("Stroke History",      None,    "Stroke indicates widespread vascular disease"),
-    "coronary_heart_disease":        ("Heart Disease",       None,    "Shared disease process with kidney disease"),
-    "family_hx_diabetes":            ("Family Hx Diabetes",  None,    "Genetic predisposition to diabetes and DKD"),
-    "education_level":               ("Education Level",     None,    "Proxy for healthcare access and disease management"),
-    "household_income_cat":          ("Income Level",        None,    "Socioeconomic factors affect disease management"),
+    "log_urine_albumin_ugl":         ("Urine Albumin",        "expm1", "Protein leaking into urine — key early damage marker"),
+    "log_serum_creatinine_mgdl":     ("Creatinine",           "expm1", "Waste product in blood — rises when kidneys cannot filter"),
+    "log_bun_mgdl":                  ("Blood Urea (BUN)",     "expm1", "Blood urea nitrogen — rises when kidneys are failing"),
+    "uacr_mgg":                      ("Urine Albumin Ratio",  None,    "Albumin-to-creatinine ratio — key DKD screening marker"),
+    "hba1c_pct":                     ("HbA1c",                None,    "3-month average blood glucose — higher means poorer diabetes control"),
+    "hemoglobin_gdl":                ("Haemoglobin",          None,    "Anaemia develops as kidney function declines"),
+    "hematocrit_pct":                ("Haematocrit",          None,    "Low values signal kidney-related anaemia"),
+    "uric_acid_mgdl":                ("Uric Acid",            None,    "Elevated levels accelerate kidney damage"),
+    "log_crp_mgL":                   ("CRP (Inflammation)",   "expm1", "Inflammation marker — drives kidney disease progression"),
+    "mean_sbp":                      ("Systolic BP",          None,    "High blood pressure directly damages kidney blood vessels"),
+    "mean_dbp":                      ("Diastolic BP",         None,    "Elevated pressure adds strain to kidney filters"),
+    "bmi_kgm2":                      ("BMI",                  None,    "Obesity increases kidney disease risk"),
+    "log_triglycerides_mgdl":        ("Triglycerides",        "expm1", "High blood fats worsen kidney disease outlook"),
+    "hdl_cholesterol_mgdl":          ("HDL Cholesterol",      None,    "Low HDL independently predicts kidney decline"),
+    "log_insulin_uiml":              ("Insulin Level",        "expm1", "High fasting insulin signals insulin resistance"),
+    "serum_albumin_gdl":             ("Serum Albumin",        None,    "Low albumin indicates poor nutrition from kidney disease"),
+    "urine_creatinine_mgdl":         ("Urine Creatinine",     None,    "Used to calculate urine albumin ratio (UACR)"),
+    "kidney_disease_history":        ("Kidney Disease Hx",    None,    "Previous kidney disease strongly predicts DKD"),
+    "hypertension_diagnosed":        ("Hypertension",         None,    "Uncontrolled blood pressure accelerates kidney damage"),
+    "kidney_stone_history":          ("Kidney Stone Hx",      None,    "Associated with chronic kidney disease progression"),
+    "insulin_use":                   ("Insulin Use",          None,    "Signals advanced diabetes requiring insulin"),
+    "phosphorus_mg_day":             ("Dietary Phosphorus",   None,    "High phosphorus intake linked to kidney decline"),
+    "potassium_mg_day":              ("Dietary Potassium",    None,    "Potassium management important in kidney disease"),
+    "current_smoker_status":         ("Smoking",              None,    "Smoking damages kidney blood vessels"),
+    "sedentary_minutes_per_day":     ("Sedentary Time",       None,    "Physical inactivity worsens metabolic health"),
+    "log_sedentary_minutes_per_day": ("Sedentary Time",       "expm1", "Physical inactivity worsens metabolic health"),
+    "vigorous_leisure_activity":     ("Physical Activity",    None,    "Protective — regular exercise reduces kidney disease risk"),
+    "age_years":                     ("Patient Age",          None,    "Older age is a primary kidney disease risk factor"),
+    "race_ethnicity_code":           ("Ethnicity",            None,    "Ethnic differences in kidney disease risk"),
+    "sex_code":                      ("Sex",                  None,    "Sex differences in kidney disease risk trajectory"),
+    "heart_attack":                  ("Heart Attack Hx",      None,    "Cardiovascular history worsens kidney disease prognosis"),
+    "stroke_ever":                   ("Stroke History",       None,    "Stroke indicates widespread vascular disease"),
+    "coronary_heart_disease":        ("Heart Disease",        None,    "Shared disease process with kidney disease"),
+    "family_hx_diabetes":            ("Family Hx Diabetes",   None,    "Genetic predisposition to diabetes and kidney disease"),
+    "education_level":               ("Education Level",      None,    "Proxy for healthcare access and disease management"),
+    "household_income_cat":          ("Income Level",         None,    "Socioeconomic factors affect disease management"),
 }
 
+RF_EXPECTED  = ["log_serum_creatinine_mgdl", "log_urine_albumin_ugl", "log_bun_mgdl", "hba1c_pct", "hemoglobin_gdl"]
+XGB_EXPECTED = ["hypertension_diagnosed", "kidney_disease_history", "kidney_stone_history", "insulin_use", "phosphorus_mg_day"]
+LR_EXPECTED  = ["age_years", "race_ethnicity_code", "sex_code", "bmi_kgm2", "heart_attack"]
+
 SHAP_EXPLAIN = (
-    "Red bars indicate factors <strong>increasing</strong> risk for this stage. "
-    "Blue bars indicate factors <strong>decreasing</strong> risk. "
-    "Longer bars carry stronger influence on the AI's assessment."
+    "The bars show how much each factor <b>increases</b> (red) or "
+    "<b>decreases</b> (blue) the AI's assessment for this patient. "
+    "Longer bars mean stronger influence."
 )
 
-# ── Session state ──────────────────────────────────────────────────────────────
-for key, default in [("page", 0), ("patient", {})]:
+for key, default in [("current_page", 0), ("patient_data", {})]:
     if key not in st.session_state:
         st.session_state[key] = default
 
-# ── Model loading ──────────────────────────────────────────────────────────────
+
 @st.cache_resource(show_spinner=False)
-def load_model():
+def load_model_from_hf():
     try:
         url = st.secrets["MODEL_URL"]
     except (KeyError, FileNotFoundError):
-        return None, "MODEL_URL not configured in Streamlit secrets."
+        return None, "MODEL_URL secret not configured. Add it to your Streamlit secrets."
     try:
-        r = requests.get(url, timeout=300)
-        r.raise_for_status()
-        return pickle.load(io.BytesIO(r.content)), None
-    except Exception as e:
-        return None, f"Could not load model: {e}"
+        resp = requests.get(url, timeout=240)
+        resp.raise_for_status()
+        return pickle.load(io.BytesIO(resp.content)), None
+    except Exception as exc:
+        return None, f"Could not load model: {exc}"
 
-# ── Core helpers ───────────────────────────────────────────────────────────────
-def display_name(feat):
+
+def display_value(feat, raw_val):
     if feat in CLINICAL_CONTEXT:
-        return CLINICAL_CONTEXT[feat][0]
-    return feat.replace("_", " ").title()
+        name, transform, _ = CLINICAL_CONTEXT[feat]
+        if transform == "expm1":
+            return name, float(np.expm1(raw_val))
+        return name, raw_val
+    return feat.replace("_", " ").title(), raw_val
 
-def display_val(feat, raw):
-    if feat in CLINICAL_CONTEXT and CLINICAL_CONTEXT[feat][1] == "expm1":
-        return float(np.expm1(raw))
-    return raw
 
-def build_vector(inputs, mdl):
-    ALL = mdl["ALL_FEATS"]
-    M1, M2, M3 = mdl["M1"], mdl["M2"], mdl["M3"]
-    imp = mdl["knn_imputer"]
-    row = {f: np.nan for f in ALL}
+def build_patient_vector(inputs, mdl):
+    ALL_FEATS   = mdl["ALL_FEATS"]
+    M1, M2, M3  = mdl["M1"], mdl["M2"], mdl["M3"]
+    knn_imputer = mdl["knn_imputer"]
+    row    = {f: np.nan for f in ALL_FEATS}
     row.update({k: v for k, v in inputs.items() if k in row})
-    df = pd.DataFrame([row])[ALL]
-    df_imp = pd.DataFrame(imp.transform(df), columns=ALL)
+    df_row = pd.DataFrame([row])[ALL_FEATS]
+    df_imp = pd.DataFrame(knn_imputer.transform(df_row), columns=ALL_FEATS)
     X1 = df_imp[[c for c in M1 if c in df_imp.columns]]
     X2 = df_imp[[c for c in M2 if c in df_imp.columns]]
     X3 = df_imp[[c for c in M3 if c in df_imp.columns]]
     return df_imp, X1, X2, X3
 
-def run_ensemble(mdl, X1, X2, X3):
-    X3s = mdl["lr_scaler"].transform(X3)
-    p1  = mdl["rf_pipeline"].predict_proba(X1)
-    p2  = mdl["xgb_pipeline"].predict_proba(X2)
-    p3  = mdl["lr_model"].predict_proba(X3s)
-    mf  = np.hstack([p1, p2, p3])
-    ms  = mdl["meta_scaler"].transform(mf)
-    pred  = int(mdl["meta_lr"].predict(ms)[0])
-    proba = mdl["meta_lr"].predict_proba(ms)[0]
-    return pred, proba, p1[0], p2[0], p3[0]
 
-def get_shap(mdl, X1, X2, X3):
+def run_ensemble(mdl, X1, X2, X3):
+    X3_sc     = mdl["lr_scaler"].transform(X3)
+    p1        = mdl["rf_pipeline"].predict_proba(X1)
+    p2        = mdl["xgb_pipeline"].predict_proba(X2)
+    p3        = mdl["lr_model"].predict_proba(X3_sc)
+    meta_feat = np.hstack([p1, p2, p3])
+    meta_sc   = mdl["meta_scaler"].transform(meta_feat)
+    pred      = mdl["meta_lr"].predict(meta_sc)[0]
+    proba     = mdl["meta_lr"].predict_proba(meta_sc)[0]
+    return int(pred), proba, p1[0], p2[0], p3[0]
+
+
+def compute_shap_patient(mdl, X1, X2, X3):
     rf_exp  = shap.TreeExplainer(mdl["rf_clf"])
     xgb_exp = shap.TreeExplainer(mdl["xgb_clf"])
     rf_sv   = np.array(rf_exp.shap_values(X1))
     xgb_sv  = np.array(xgb_exp.shap_values(X2))
     try:
-        X3s  = mdl["lr_scaler"].transform(X3)
-        coef = mdl["lr_model"].coef_
-        lr_sv = coef[:, np.newaxis, :] * np.array(X3s)[np.newaxis, :, :]
+        X3_sc = mdl["lr_scaler"].transform(X3)
+        coef  = mdl["lr_model"].coef_
+        lr_sv = coef[:, np.newaxis, :] * np.array(X3_sc)[np.newaxis, :, :]
     except Exception:
         lr_sv = None
     return rf_sv, xgb_sv, lr_sv
 
-def plot_shap_bar(shap_dict, title, c_pos="#ef4444", c_neg="#1a6efc", top_n=10):
+
+def progression_risk_profile(rf_sv, X1, pred_class):
+    if pred_class >= N_CLASSES - 1:
+        return None, None
+    shap_next = rf_sv[0, :, pred_class + 1] if rf_sv.ndim == 3 else rf_sv[:, :, pred_class + 1][0]
+    feat_shap = dict(zip(X1.columns.tolist(), shap_next))
+    risk = sorted([(f, v) for f, v in feat_shap.items() if v > 0 and f in CLINICAL_CONTEXT],
+                  key=lambda x: x[1], reverse=True)[:5]
+    prot = sorted([(f, v) for f, v in feat_shap.items() if v < 0 and f in CLINICAL_CONTEXT],
+                  key=lambda x: x[1])[:3]
+    return risk, prot
+
+
+def plot_shap_bar(shap_dict, title, color_pos="#ef4444", color_neg="#3b82f6",
+                  top_n=10, highlight_feats=None):
     items = sorted(shap_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:top_n]
     if not items:
         return None
-    labels = [display_name(f) for f, _ in items]
-    vals   = [v for _, v in items]
-    colors = [c_pos if v > 0 else c_neg for v in vals]
+    labels = [display_value(f, 0)[0] for f, _ in items]
+    vals   = [sv for _, sv in items]
+    colors = []
+    for feat, sv in items:
+        if sv > 0:
+            colors.append("#f97316" if (highlight_feats and feat in highlight_feats) else color_pos)
+        else:
+            colors.append("#0ea5e9" if (highlight_feats and feat in highlight_feats) else color_neg)
     fig, ax = plt.subplots(figsize=(8, max(3.5, len(labels) * 0.48)))
-    ax.barh(labels[::-1], vals[::-1], color=colors[::-1], alpha=0.85, height=0.6)
-    ax.axvline(0, color="#2d4060", lw=1, ls="--")
+    ax.barh(labels[::-1], vals[::-1], color=colors[::-1], alpha=0.88, height=0.62)
+    ax.axvline(0, color="#374151", lw=0.9, ls="--")
     ax.set_xlabel("Influence on prediction (SHAP value)", fontsize=9)
-    ax.set_title(title, fontsize=10, fontweight="bold", color="#f0f4ff")
+    ax.set_title(title, fontsize=10, fontweight="700")
     ax.spines[["top", "right"]].set_visible(False)
     ax.tick_params(labelsize=8.5)
     plt.tight_layout()
     return fig
 
-def urgency_chip(text):
-    cm = {"Routine": "green", "Within 4": "blue", "Within 2": "amber",
-          "Urgent": "red", "Immediate": "red", "Emergency": "red"}
-    c  = next((v for k, v in cm.items() if text.startswith(k)), "blue")
-    return f'<span class="chip {c}">{text}</span>'
 
 def stepper_html(current):
-    steps = ["Clinical", "Lifestyle", "Demographics", "Results"]
+    steps = ["Clinical Data", "Lifestyle", "Demographics", "Results"]
     parts = []
     for i, label in enumerate(steps):
-        cls  = "done" if i < current else ("active" if i == current else "todo")
-        num  = "✓" if i < current else str(i + 1)
-        lc   = "done" if i < current else ""
-        dot  = f'<div class="step-dot {cls}">{num}</div>'
-        lbl  = f'<div class="step-label">{label}</div>'
-        inner = f'<div style="display:flex;flex-direction:column;align-items:center">{dot}{lbl}</div>'
-        conn  = f'<div class="step-line {lc}"></div>' if i < len(steps) - 1 else ""
+        cls      = "done" if i < current else ("active" if i == current else "todo")
+        num      = "✓"   if i < current else str(i + 1)
+        line_cls = "done" if i < current else ""
+        dot      = f'<div class="step-dot {cls}">{num}</div>'
+        lbl      = f'<div class="step-label">{label}</div>'
+        inner    = f'<div style="display:flex;flex-direction:column;align-items:center">{dot}{lbl}</div>'
+        conn     = f'<div class="step-line {line_cls}"></div>' if i < len(steps) - 1 else ""
         parts.append(f'<div class="step-item">{inner}{conn}</div>')
     return '<div class="stepper">' + "".join(parts) + "</div>"
 
-# ── Platform header ────────────────────────────────────────────────────────────
+
+def urgency_chip(text):
+    color_map = {
+        "Routine": "green", "Within 4": "blue", "Within 2": "amber",
+        "Urgent": "red", "Immediate": "red", "Emergency": "red",
+    }
+    chip_color = next((v for k, v in color_map.items() if text.startswith(k)), "blue")
+    return f'<span class="chip {chip_color}">{text}</span>'
+
+
 st.markdown("""
-<div class="platform-header">
-  <div class="platform-icon">🔬</div>
+<div class="app-header">
+  <div style="font-size:1.8rem;line-height:1">🔬</div>
   <div>
-    <p class="platform-name">GlomeraAI</p>
-    <p class="platform-sub">CLINICAL INTELLIGENCE PLATFORM &nbsp;·&nbsp; KDIGO 2024 · NHANES-VALIDATED · FAIRNESS-AUDITED</p>
+    <p class="app-header-title">GlomeraAI</p>
+    <p class="app-header-sub">DKD Clinical Decision Support &nbsp;·&nbsp; Multimodel Ensemble · KDIGO 2024 Staging · Fairness-Audited · Explainable AI</p>
   </div>
-  <div class="platform-badge">AUC 0.961 · NHANES Validated</div>
 </div>
 """, unsafe_allow_html=True)
 
-# ── Load model ─────────────────────────────────────────────────────────────────
-with st.spinner("Initialising AI engine..."):
-    mdl, err = load_model()
+with st.spinner("Loading AI model..."):
+    mdl, load_err = load_model_from_hf()
 
-if err:
-    st.error(f"**Model unavailable.** {err}")
-    st.info("Set `MODEL_URL` in `.streamlit/secrets.toml` pointing to `DKD_complete_artifacts.pkl`.")
+if load_err:
+    st.error(f"Model loading failed. {load_err}")
+    st.info("Ensure MODEL_URL is set in Streamlit secrets pointing to DKD_complete_artifacts.pkl.")
     st.stop()
 
-# ── Sidebar navigation ─────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### 🔬 GlomeraAI")
-    st.markdown('<div style="font-size:.72rem;color:#475569;font-family:\'DM Mono\',monospace;margin:-4px 0 12px">Clinical Intelligence Platform</div>', unsafe_allow_html=True)
     st.markdown("---")
 
-    nav = {
-        0: ("🩺", "Patient Assessment"),
-        1: ("📈", "HbA1c What-If"),
-        2: ("⚙️", "Risk Sensitivity"),
-        3: ("🎯", "Demo Patients"),
+    current = st.session_state.current_page
+    nav_labels = {
+        0: "🩺  Patient Assessment",
+        1: "Lifestyle",
+        2: "Demographics",
+        3: "Results",
+        4: "🎯  Demo Patients",
+        5: "📈  HbA1c What-If",
+        6: "⚙️  Risk Sensitivity",
     }
 
-    for pg, (icon, label) in nav.items():
-        active = pg == st.session_state.page
-        if active:
+    for pg, label in nav_labels.items():
+        is_active = pg == current
+        if is_active:
             st.markdown('<div class="nav-active">', unsafe_allow_html=True)
-        prefix = "▶ " if active else "   "
-        if st.button(f"{prefix}{icon}  {label}", key=f"nav_{pg}"):
-            st.session_state.page = pg; st.rerun()
-        if active:
+        prefix = "▶ " if is_active else ("✓ " if pg < current else "  ")
+        if st.button(f"{prefix}{label}", key=f"nav_btn_{pg}"):
+            st.session_state.current_page = pg
+            st.rerun()
+        if is_active:
             st.markdown('</div>', unsafe_allow_html=True)
 
     st.markdown("---")
+    st.markdown("#### How this AI works")
     st.markdown("""
-    <div style="font-size:.77rem;line-height:1.8;color:#8496b0">
-    <strong style="color:#f0f4ff">Three specialist models</strong><br>
-    <span style="color:#7cb3ff">■ M1 RF</span> Clinical biomarkers
-    <span style="color:#7cb3ff;font-family:'DM Mono',monospace;font-size:.7rem"> 53.1%</span><br>
-    <span style="color:#a78bfa">■ M3 LR</span> Demographics &amp; history
-    <span style="color:#a78bfa;font-family:'DM Mono',monospace;font-size:.7rem"> 27.3%</span><br>
-    <span style="color:#fb923c">■ M2 XGB</span> Lifestyle &amp; medications
-    <span style="color:#fb923c;font-family:'DM Mono',monospace;font-size:.7rem"> 19.6%</span><br><br>
-    <span style="color:#8496b0;font-size:.72rem">Meta-learner weights from<br>SHAP analysis on NHANES data</span>
+    <div style="font-size:.78rem;line-height:1.7;color:#94a3b8">
+    Three models analyse different aspects of your patient and combine their findings:<br><br>
+    <span style="color:#60a5fa;font-weight:600">Clinical Model (M1)</span> — 53.1%<br>
+    Blood tests and kidney markers<br><br>
+    <span style="color:#a78bfa;font-weight:600">Demographics Model (M3)</span> — 27.3%<br>
+    Age, sex, ethnicity, history<br><br>
+    <span style="color:#fb923c;font-weight:600">Lifestyle Model (M2)</span> — 19.6%<br>
+    Medications, activity, diet<br><br>
+    <span style="color:#94a3b8;font-weight:600">Combined Decision</span><br>
+    Meta-learner weights from SHAP analysis
     </div>
     """, unsafe_allow_html=True)
     st.markdown("---")
-    st.markdown('<div style="font-size:.68rem;color:#475569;text-align:center">NHANES 2015–2020 · n=2,627 · KDIGO 2024</div>', unsafe_allow_html=True)
+    st.markdown("""
+    <div style="font-size:.7rem;color:#475569;text-align:center">
+    NHANES 2015–2020 · n=2,627 · AUC 0.961
+    </div>
+    """, unsafe_allow_html=True)
 
-# PAGE 0 — Patient Assessment (wizard)
 
-if st.session_state.page == 0:
-
-    # ── Sub-page state ─────────────────────────────────────────────────────────
-    if "wizard_step" not in st.session_state:
-        st.session_state.wizard_step = 0
-
-    step = st.session_state.wizard_step
-
-    # ── Step 0: Clinical ───────────────────────────────────────────────────────
-    if step == 0:
-        st.markdown(stepper_html(0), unsafe_allow_html=True)
-        st.markdown("""<div class="domain-badge rf">
-          <h4>Clinical Model (M1) — Blood Tests & Kidney Markers</h4>
-          <p>Serum creatinine · Urine albumin · BUN · HbA1c · Haemoglobin</p>
-        </div>""", unsafe_allow_html=True)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Blood Pressure** *(average of 3 readings)*")
-            sbp1 = st.number_input("Systolic BP — Reading 1 (mmHg)",  80, 220, 130, key="sbp1")
-            dbp1 = st.number_input("Diastolic BP — Reading 1 (mmHg)", 40, 130, 78,  key="dbp1")
-            sbp2 = st.number_input("Systolic BP — Reading 2 (mmHg)",  80, 220, 128, key="sbp2")
-            dbp2 = st.number_input("Diastolic BP — Reading 2 (mmHg)", 40, 130, 76,  key="dbp2")
-            sbp3 = st.number_input("Systolic BP — Reading 3 (mmHg)",  80, 220, 132, key="sbp3")
-            dbp3 = st.number_input("Diastolic BP — Reading 3 (mmHg)", 40, 130, 80,  key="dbp3")
-            st.markdown("**Kidney & Urine Markers**")
-            serum_cr  = st.number_input("Serum Creatinine (mg/dL)",    0.2, 20.0,   1.1,  step=0.1, key="serum_cr")
-            urine_alb = st.number_input("Urine Albumin (µg/L)",         0.5, 5000.0, 25.0, step=0.5, key="urine_alb")
-            urine_cr  = st.number_input("Urine Creatinine (mg/dL)",     5.0, 3000.0, 120.0,           key="urine_cr")
-
-        with col2:
-            st.markdown("**Metabolic & Blood Chemistry**")
-            hba1c     = st.number_input("HbA1c (%)",                 4.0, 20.0,  7.2,  step=0.1, key="hba1c")
-            fasting_gl = st.number_input("Fasting Glucose (mg/dL)",  40.0, 600.0, 145.0,          key="fasting_gl")
-            insulin   = st.number_input("Fasting Insulin (µIU/mL)",  0.0,  300.0, 12.0,           key="insulin")
-            bun       = st.number_input("BUN (mg/dL)",               2.0,  150.0, 16.0,           key="bun")
-            uric_acid = st.number_input("Uric Acid (mg/dL)",         1.0,  20.0,  5.8,  step=0.1, key="uric_acid")
-            st.markdown("**Blood Count & Other**")
-            hemoglobin = st.number_input("Haemoglobin (g/dL)", 4.0,  22.0, 13.5, step=0.1, key="hemoglobin")
-            hematocrit = st.number_input("Haematocrit (%)",   10.0,  65.0, 40.0, step=0.5, key="hematocrit")
-            serum_alb  = st.number_input("Serum Albumin (g/dL)", 1.0, 6.0,  4.1, step=0.1, key="serum_alb")
-            crp        = st.number_input("CRP (mg/L)",         0.0,  200.0, 3.5, step=0.1, key="crp")
-
-        st.markdown("**Lipid Panel & Body**")
-        ca, cb, cc = st.columns(3)
-        with ca:
-            tot_chol = st.number_input("Total Cholesterol (mg/dL)", 50.0,  600.0, 195.0, key="tot_chol")
-            ldl      = st.number_input("LDL Cholesterol (mg/dL)",   20.0,  500.0, 115.0, key="ldl")
-        with cb:
-            hdl  = st.number_input("HDL Cholesterol (mg/dL)", 10.0,  200.0, 48.0,  key="hdl")
-            trig = st.number_input("Triglycerides (mg/dL)",   20.0, 3000.0, 145.0, key="trig")
-        with cc:
-            bmi  = st.number_input("BMI (kg/m²)", 12.0, 80.0, 28.5, step=0.1, key="bmi")
-
-        mean_sbp = round((sbp1 + sbp2 + sbp3) / 3, 1)
-        mean_dbp = round((dbp1 + dbp2 + dbp3) / 3, 1)
-        uacr     = round(urine_alb / (urine_cr * 10), 2) if urine_cr > 0 else 0.0
-
-        st.markdown(f"""<div class="rec-block blue">
-          <strong>Auto-calculated:</strong> &nbsp;
-          Mean SBP = <strong>{mean_sbp} mmHg</strong> &nbsp;·&nbsp;
-          Mean DBP = <strong>{mean_dbp} mmHg</strong> &nbsp;·&nbsp;
-          UACR = <strong>{uacr:.1f} mg/g</strong>
-        </div>""", unsafe_allow_html=True)
-
-        st.session_state.patient.update({
-            "mean_sbp": mean_sbp, "mean_dbp": mean_dbp,
-            "serum_creatinine_mgdl": serum_cr,
-            "log_serum_creatinine_mgdl": np.log1p(serum_cr),
-            "urine_albumin_ugl": urine_alb,
-            "log_urine_albumin_ugl": np.log1p(urine_alb),
-            "urine_creatinine_mgdl": urine_cr,
-            "uacr_mgg": uacr, "log_uacr": np.log10(max(uacr, 0.01)),
-            "hba1c_pct": hba1c,
-            "fasting_glucose_mgdl": fasting_gl,
-            "log_fasting_glucose_mgdl": np.log1p(fasting_gl),
-            "insulin_uiml": insulin,
-            "log_insulin_uiml": np.log1p(insulin),
-            "bun_mgdl": bun, "log_bun_mgdl": np.log1p(bun),
-            "uric_acid_mgdl": uric_acid,
-            "hemoglobin_gdl": hemoglobin, "hematocrit_pct": hematocrit,
-            "serum_albumin_gdl": serum_alb,
-            "crp_mgL": crp, "log_crp_mgL": np.log1p(crp),
-            "total_cholesterol_mgdl": tot_chol, "ldl_cholesterol_mgdl": ldl,
-            "hdl_cholesterol_mgdl": hdl,
-            "triglycerides_mgdl": trig, "log_triglycerides_mgdl": np.log1p(trig),
-            "bmi_kgm2": bmi,
-        })
-        _, col_btn, _ = st.columns([2, 3, 2])
-        with col_btn:
-            if st.button("Continue to Lifestyle →", type="primary", use_container_width=True):
-                st.session_state.wizard_step = 1; st.rerun()
-
-    # ── Step 1: Lifestyle ──────────────────────────────────────────────────────
-    elif step == 1:
-        st.markdown(stepper_html(1), unsafe_allow_html=True)
-        st.markdown("""<div class="domain-badge xgb">
-          <h4>Lifestyle Model (M2) — Medications, Activity & Diet</h4>
-          <p>Kidney disease history · Hypertension · Insulin use · Physical activity · Phosphorus</p>
-        </div>""", unsafe_allow_html=True)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Medications & Diagnoses**")
-            dm_dx       = st.selectbox("Diabetes Diagnosed?",               [1, 0], format_func=lambda x: "Yes" if x else "No", key="dm_dx")
-            insulin_use = st.selectbox("Currently using insulin?",          [0, 1], format_func=lambda x: "Yes" if x else "No", key="insulin_use")
-            oral_meds   = st.selectbox("Oral diabetes medications?",        [0, 1], format_func=lambda x: "Yes" if x else "No", key="oral_meds")
-            htn_dx      = st.selectbox("Diagnosed hypertension?",           [0, 1], format_func=lambda x: "Yes" if x else "No", key="htn_dx")
-            bp_med      = st.selectbox("Blood pressure medication?",        [0, 1], format_func=lambda x: "Yes" if x else "No", key="bp_med")
-            statin      = st.selectbox("Taking statins?",                   [0, 1], format_func=lambda x: "Yes" if x else "No", key="statin")
-            st.markdown("**Kidney History**")
-            kidney_hx    = st.selectbox("History of kidney disease?",  [0, 1], format_func=lambda x: "Yes" if x else "No", key="kidney_hx")
-            kidney_stone = st.selectbox("History of kidney stones?",   [0, 1], format_func=lambda x: "Yes" if x else "No", key="kidney_stone")
-            nocturia     = st.selectbox("Waking at night to urinate?", [0, 1], format_func=lambda x: "Yes" if x else "No", key="nocturia")
-
-        with col2:
-            st.markdown("**Activity & Lifestyle**")
-            smoker      = st.selectbox("Smoking status", [0, 1, 2],
-                                       format_func=lambda x: ["Never", "Former", "Current smoker"][x], key="smoker")
-            alcohol     = st.number_input("Alcohol (drinks/day)", 0.0, 20.0, 0.3, step=0.1, key="alcohol")
-            vig_leisure = st.selectbox("Vigorous exercise?", [0, 1], format_func=lambda x: "Yes" if x else "No", key="vig_leisure")
-            sedentary   = st.number_input("Sedentary time/day (minutes)", 0, 1440, 300, key="sedentary")
-            sleep_h     = st.number_input("Weekday sleep (hours)", 2.0, 14.0, 7.0, step=0.5, key="sleep_h")
-            st.markdown("**Dietary Intake (daily averages)**")
-            sodium     = st.number_input("Sodium (mg/day)",       100.0, 15000.0, 2800.0, key="sodium")
-            protein    = st.number_input("Protein (g/day)",         5.0,   400.0,   85.0, key="protein")
-            potassium  = st.number_input("Potassium (mg/day)",     200.0,  8000.0, 2800.0, key="potassium")
-            phosphorus = st.number_input("Phosphorus (mg/day)",    100.0,  4000.0, 1100.0, key="phosphorus")
-
-        st.session_state.patient.update({
-            "diabetes_diagnosed": dm_dx, "insulin_use": insulin_use,
-            "oral_diabetes_meds": oral_meds, "hypertension_diagnosed": htn_dx,
-            "bp_medication": bp_med, "statin_use": statin,
-            "current_smoker_status": smoker,
-            "avg_alcohol_drinks_per_day": alcohol,
-            "log_avg_alcohol_drinks_per_day": np.log1p(alcohol),
-            "vigorous_leisure_activity": vig_leisure,
-            "sedentary_minutes_per_day": sedentary,
-            "log_sedentary_minutes_per_day": np.log1p(sedentary),
-            "sleep_hours_weekday": sleep_h,
-            "kidney_disease_history": kidney_hx, "kidney_stone_history": kidney_stone,
-            "nocturia": nocturia,
-            "sodium_mg_day": sodium, "protein_g_day": protein,
-            "potassium_mg_day": potassium, "phosphorus_mg_day": phosphorus,
-        })
-        cl, _, cr = st.columns([2, 2, 2])
-        with cl:
-            if st.button("← Back", use_container_width=True):
-                st.session_state.wizard_step = 0; st.rerun()
-        with cr:
-            if st.button("Continue to Demographics →", type="primary", use_container_width=True):
-                st.session_state.wizard_step = 2; st.rerun()
-
-    # ── Step 2: Demographics ───────────────────────────────────────────────────
-    elif step == 2:
-        st.markdown(stepper_html(2), unsafe_allow_html=True)
-        st.markdown("""<div class="domain-badge lr">
-          <h4>Demographics Model (M3) — Patient Background & History</h4>
-          <p>Age · Sex · Ethnicity · Cardiovascular history · Socioeconomic factors</p>
-        </div>""", unsafe_allow_html=True)
-
-        col1, col2 = st.columns(2)
-        with col1:
-            st.markdown("**Patient Background**")
-            age  = st.number_input("Age (years)", 18, 100, 58, key="age")
-            sex  = st.selectbox("Sex", [0, 1], format_func=lambda x: "Male" if x == 0 else "Female", key="sex")
-            race = st.selectbox("Race / Ethnicity", [1, 2, 3, 4, 6, 7],
-                                format_func=lambda x: {1:"Mexican American",2:"Other Hispanic",
-                                                       3:"Non-Hispanic White",4:"Non-Hispanic Black",
-                                                       6:"Non-Hispanic Asian",7:"Other/Multiracial"}[x], key="race")
-            st.markdown("**Socioeconomic**")
-            education = st.selectbox("Education level", [1,2,3,4,5], index=3,
-                                     format_func=lambda x: {1:"< 9th grade",2:"Some high school",
-                                                            3:"High school / GED",4:"Some college",
-                                                            5:"College graduate+"}[x], key="education")
-            income = st.selectbox("Household income", [1,2,3,4,5,6,7,8,9,10,14,15], index=7,
-                                  format_func=lambda x: {1:"< $5k",2:"$5–10k",3:"$10–15k",4:"$15–20k",
-                                                         5:"$20–25k",6:"$25–35k",7:"$35–45k",8:"$45–55k",
-                                                         9:"$55–65k",10:"$65–75k",14:"$75–100k",
-                                                         15:"Over $100k"}[x], key="income")
-            food_sec = st.number_input("Food security score (0–18)", 0.0, 18.0, 10.0, step=1.0, key="food_sec")
-
-        with col2:
-            st.markdown("**Cardiovascular & Family History**")
-            chd       = st.selectbox("Coronary heart disease?", [0,1], format_func=lambda x: "Yes" if x else "No", key="chd")
-            heart_att = st.selectbox("Heart attack history?",   [0,1], format_func=lambda x: "Yes" if x else "No", key="heart_att")
-            stroke    = st.selectbox("Stroke history?",         [0,1], format_func=lambda x: "Yes" if x else "No", key="stroke")
-            fam_hx_dm = st.selectbox("Family history diabetes?",[0,1], format_func=lambda x: "Yes" if x else "No", key="fam_hx_dm")
-
-        sex_l  = "Female" if sex == 1 else "Male"
-        race_l = {1:"Mexican American",2:"Other Hispanic",3:"Non-Hispanic White",
-                  4:"Non-Hispanic Black",6:"Non-Hispanic Asian",7:"Other/Multiracial"}[race]
-        st.markdown(f"""<div class="rec-block blue">
-          <strong>Patient Profile:</strong> {age}-year-old {sex_l} · {race_l}
-        </div>""", unsafe_allow_html=True)
-
-        st.session_state.patient.update({
-            "age_years": age, "sex_code": sex, "race_ethnicity_code": race,
-            "education_level": education, "household_income_cat": income,
-            "food_security_score": food_sec,
-            "coronary_heart_disease": chd, "heart_attack": heart_att,
-            "stroke_ever": stroke, "family_hx_diabetes": fam_hx_dm,
-        })
-        cl, _, cr = st.columns([2, 2, 2])
-        with cl:
-            if st.button("← Back", use_container_width=True):
-                st.session_state.wizard_step = 1; st.rerun()
-        with cr:
-            if st.button("🔬  Run AI Assessment", type="primary", use_container_width=True):
-                st.session_state.wizard_step = 3; st.rerun()
-
-    # ── Step 3: Results ────────────────────────────────────────────────────────
-    elif step == 3:
-        st.markdown(stepper_html(3), unsafe_allow_html=True)
-
-        with st.spinner("Running AI analysis across all three models..."):
-            df_imp, X1, X2, X3 = build_vector(st.session_state.patient, mdl)
-            pred, proba, p1, p2, p3 = run_ensemble(mdl, X1, X2, X3)
-            rf_sv, xgb_sv, lr_sv = get_shap(mdl, X1, X2, X3)
-
-        rec         = STAGE_RECS[pred]
-        stage_color = STAGE_COLORS[pred]
-        prog_score  = sum(c * proba[c] for c in range(N_CLASSES))
-        entropy_val = scipy_entropy(proba)
-        uncertainty = entropy_val / scipy_entropy([1/N_CLASSES]*N_CLASSES)
-        conf_label  = ("High confidence" if uncertainty < 0.33 else
-                       "Moderate" if uncertainty < 0.66 else "Low — review carefully")
-        conf_color  = ("#10b981" if uncertainty < 0.33 else
-                       "#f59e0b" if uncertainty < 0.66 else "#ef4444")
-        forward_p   = float(sum(proba[c] for c in range(pred+1, N_CLASSES)))
-
-        # Store for use in other pages
-        st.session_state["last_pred"]  = pred
-        st.session_state["last_proba"] = proba
-        st.session_state["last_hba1c"] = st.session_state.patient.get("hba1c_pct", 7.2)
-
-        # Result hero
-        st.markdown(f"""
-        <div class="stage-result-card" style="color:{stage_color};
-             background:rgba({','.join(str(int(int(stage_color.lstrip('#')[i:i+2],16)*0.12)) for i in (0,2,4))},1);
-             border-color:{stage_color}40">
-          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;
-                      color:{stage_color};margin-bottom:.5rem">GlomeraAI ASSESSMENT</div>
-          <div style="font-size:2.1rem;font-weight:800;letter-spacing:-.03em;color:{stage_color}">
-            {STAGE_NAMES[pred]}</div>
-          <div style="font-size:.9rem;color:#8496b0;margin-top:.5rem">{rec['headline']}</div>
-          <div style="margin-top:.9rem">{urgency_chip(rec['urgency'])}</div>
-        </div>""", unsafe_allow_html=True)
-
-        c1, c2, c3, c4 = st.columns(4)
-        tiles = [
-            (f"Stage {pred}", "KDIGO 2024 Stage (0–5)", stage_color),
-            (f"{proba[pred]*100:.0f}%", "Stage probability", "#f0f4ff"),
-            (conf_label.split()[0], "AI confidence", conf_color),
-            (f"{prog_score:.2f}/5", "Severity score", "#f0f4ff"),
-        ]
-        for col, (val, lbl, color) in zip([c1,c2,c3,c4], tiles):
-            with col:
-                st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{color}">{val}</div><div class="kpi-lbl">{lbl}</div></div>', unsafe_allow_html=True)
-
-        st.markdown(f"""<div class="rec-block {rec['color']}">
-          <strong>Recommended Clinical Actions</strong>
-          <ul style="margin:.5rem 0 0;padding-left:1.2rem">
-            {''.join(f"<li style='margin:.3rem 0'>{a}</li>" for a in rec['actions'])}
-          </ul>
-        </div>""", unsafe_allow_html=True)
-
-        # Plain-language SHAP narrative
-        shap_rf_dict = dict(zip(X1.columns.tolist(), rf_sv[0, :, pred]))
-        top3 = sorted(shap_rf_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:3]
-        narrative_parts = []
-        for feat, sv in top3:
-            name = display_name(feat)
-            raw  = display_val(feat, float(df_imp[feat].iloc[0]))
-            direction = "elevated" if sv > 0 else "lower than expected"
-            desc = CLINICAL_CONTEXT.get(feat, ("", None, ""))[2]
-            narrative_parts.append(f"<strong>{name}</strong> ({raw:.2f}) is {direction} — {desc}")
-        narrative_html = "; ".join(narrative_parts) + "."
-        st.markdown(f"""<div class="rec-block teal">
-          <strong>Why this prediction?</strong><br>
-          The primary drivers for this patient are: {narrative_html}
-        </div>""", unsafe_allow_html=True)
-
-        st.divider()
-
-        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-            "Summary", "Clinical (M1)", "Lifestyle (M2)",
-            "Demographics (M3)", "Progression Risk", "Fairness",
-        ])
-
-        with tab1:
-            st.markdown('<p class="sect-hdr">Patient Snapshot</p>', unsafe_allow_html=True)
-            pd = st.session_state.patient
-            cs1, cs2, cs3 = st.columns(3)
-            with cs1:
-                st.markdown("**Key Clinical Values**")
-                st.write(f"HbA1c: **{pd.get('hba1c_pct','—'):.1f}%** (target <7%)")
-                st.write(f"UACR: **{pd.get('uacr_mgg','—'):.1f} mg/g**")
-                st.write(f"BP: **{pd.get('mean_sbp','—')}/{pd.get('mean_dbp','—')} mmHg**")
-                st.write(f"BMI: **{pd.get('bmi_kgm2','—'):.1f} kg/m²**")
-            with cs2:
-                st.markdown("**Model Agreement**")
-                for label, prob, color in [
-                    ("Clinical (M1)",     p1[pred], "#1a6efc"),
-                    ("Lifestyle (M2)",    p2[pred], "#f97316"),
-                    ("Demographics (M3)", p3[pred], "#a855f7"),
-                ]:
-                    st.markdown(f"""
-                    <div style="display:flex;justify-content:space-between;align-items:center;
-                         padding:.4rem .7rem;background:rgba(255,255,255,.04);border-radius:8px;margin:.3rem 0">
-                      <span style="font-size:.83rem">{label}</span>
-                      <strong style="color:{color};font-family:'DM Mono',monospace">{prob*100:.0f}%</strong>
-                    </div>""", unsafe_allow_html=True)
-            with cs3:
-                st.markdown("**Patient Demographics**")
-                sex_l  = "Female" if pd.get("sex_code")==1 else "Male"
-                race_l = {1:"Mexican Am.",2:"Other Hispanic",3:"NH White",
-                          4:"NH Black",6:"NH Asian",7:"Other"}.get(pd.get("race_ethnicity_code"),"—")
-                inc    = pd.get("household_income_cat",8)
-                inc_l  = "Low" if inc<=5 else ("Middle" if inc<=9 else "High")
-                st.write(f"Age: **{pd.get('age_years','—')}** · {sex_l}")
-                st.write(f"Ethnicity: **{race_l}**")
-                st.write(f"Income tier: **{inc_l}**")
-
-            st.markdown('<p class="sect-hdr">Stage Probability Distribution</p>', unsafe_allow_html=True)
-            fig_dist, ax = plt.subplots(figsize=(10, 2.8))
-            bars = ax.barh([STAGE_NAMES[c] for c in range(N_CLASSES)],
-                           [proba[c]*100 for c in range(N_CLASSES)],
-                           color=[STAGE_COLORS[c] for c in range(N_CLASSES)],
-                           alpha=0.85, height=0.62)
-            for bar, val in zip(bars, proba):
-                ax.text(bar.get_width()+.5, bar.get_y()+bar.get_height()/2,
-                        f"{val*100:.1f}%", va="center", fontsize=8.5, fontweight="600")
-            ax.set_xlabel("Probability (%)", fontsize=9)
-            ax.set_xlim(0, 110)
-            ax.spines[["top","right"]].set_visible(False)
-            plt.tight_layout()
-            st.pyplot(fig_dist, use_container_width=True); plt.close()
-
-        with tab2:
-            st.markdown("""<div class="domain-badge rf">
-              <h4>Clinical Model (M1) — Blood test and kidney marker influence</h4>
-            </div>""", unsafe_allow_html=True)
-            st.markdown(f'<div class="rec-block blue">{SHAP_EXPLAIN}</div>', unsafe_allow_html=True)
-            fig_rf = plot_shap_bar(shap_rf_dict, f"Clinical Factors — Stage {pred} Prediction", "#ef4444", "#1a6efc")
-            if fig_rf:
-                st.pyplot(fig_rf, use_container_width=True); plt.close()
-
-        with tab3:
-            st.markdown("""<div class="domain-badge xgb">
-              <h4>Lifestyle Model (M2) — Medication and lifestyle influence</h4>
-            </div>""", unsafe_allow_html=True)
-            st.markdown(f'<div class="rec-block orange">{SHAP_EXPLAIN}</div>', unsafe_allow_html=True)
-            shap_xgb = dict(zip(X2.columns.tolist(), xgb_sv[0, :, pred]))
-            fig_xgb  = plot_shap_bar(shap_xgb, f"Lifestyle Factors — Stage {pred} Prediction", "#f97316", "#0ea5e9")
-            if fig_xgb:
-                st.pyplot(fig_xgb, use_container_width=True); plt.close()
-
-            st.markdown('<p class="sect-hdr">Three-Model Agreement</p>', unsafe_allow_html=True)
-            fig_comp, ax2 = plt.subplots(figsize=(10, 3.2))
-            x, w = np.arange(N_CLASSES), 0.26
-            ax2.bar(x-w, p1*100, w, label="M1 Clinical",     color="#1a6efc", alpha=0.85)
-            ax2.bar(x,   p2*100, w, label="M2 Lifestyle",    color="#f97316", alpha=0.85)
-            ax2.bar(x+w, p3*100, w, label="M3 Demographics", color="#a855f7", alpha=0.85)
-            ax2.set_xticks(x)
-            ax2.set_xticklabels([f"Stage {c}" for c in range(N_CLASSES)], fontsize=8.5)
-            ax2.set_ylabel("Confidence (%)", fontsize=9)
-            ax2.set_title("All Three Models — Stage Confidence", fontsize=10, fontweight="bold")
-            ax2.legend(fontsize=8.5)
-            ax2.spines[["top","right"]].set_visible(False)
-            plt.tight_layout()
-            st.pyplot(fig_comp, use_container_width=True); plt.close()
-
-        with tab4:
-            st.markdown("""<div class="domain-badge lr">
-              <h4>Demographics Model (M3) — Patient background influence</h4>
-            </div>""", unsafe_allow_html=True)
-            st.markdown(f'<div class="rec-block purple">{SHAP_EXPLAIN}</div>', unsafe_allow_html=True)
-            if lr_sv is not None:
-                try:
-                    shap_lr = (dict(zip(X3.columns.tolist(), lr_sv[pred, 0, :]))
-                               if lr_sv.ndim == 3 else
-                               dict(zip(X3.columns.tolist(), lr_sv[0, :])))
-                except Exception:
-                    shap_lr = {}
-                if shap_lr:
-                    fig_lr = plot_shap_bar(shap_lr, f"Demographic Factors — Stage {pred} Prediction", "#a855f7", "#06b6d4")
-                    if fig_lr:
-                        st.pyplot(fig_lr, use_container_width=True); plt.close()
-            st.markdown("""<div class="rec-block purple">
-              <strong>Note on demographic factors:</strong> Differences by age, ethnicity, or sex reflect
-              documented population-level differences in DKD rates, not algorithmic bias. This system
-              was independently audited for fairness across all demographic groups.
-            </div>""", unsafe_allow_html=True)
-
-        with tab5:
-            st.markdown('<p class="sect-hdr">Progression Risk Assessment</p>', unsafe_allow_html=True)
-            if pred >= N_CLASSES - 1:
-                st.markdown("""<div class="verdict-card safe">
-                  <div class="verdict-title" style="color:#10b981">Stage 5 — Kidney Replacement Required</div>
-                  <div class="verdict-body">Patient is at the most advanced stage. Focus on renal replacement therapy.</div>
-                </div>""", unsafe_allow_html=True)
-            else:
-                next_name = STAGE_NAMES[pred+1]
-                if forward_p >= 0.30:
-                    v_cls  = "danger"; v_title = "PROGRESSION LIKELY"
-                    v_color = "#ef4444"; v_txt = f"{forward_p*100:.0f}% chance of progressing beyond {STAGE_NAMES[pred]}. Prioritise clinical intervention and nephrology referral."
-                elif forward_p >= 0.15:
-                    v_cls  = "warning"; v_title = "MONITOR CLOSELY"
-                    v_color = "#f59e0b"; v_txt = f"{forward_p*100:.0f}% probability of worsening to {next_name}. Good management may prevent progression."
-                else:
-                    v_cls  = "safe"; v_title = "STAGE APPEARS STABLE"
-                    v_color = "#10b981"; v_txt = f"Only {forward_p*100:.0f}% chance of progression. Current management appears effective."
-                st.markdown(f"""<div class="verdict-card {v_cls}">
-                  <div class="verdict-title" style="color:{v_color}">{v_title}</div>
-                  <div class="verdict-body">{v_txt}</div>
-                </div>""", unsafe_allow_html=True)
-
-            # Severity gauge
-            fig_g, ax_g = plt.subplots(figsize=(9, 1.8))
-            ax_g.barh([""], [prog_score], color=stage_color, alpha=0.85, height=0.45)
-            ax_g.set_xlim(0, 5)
-            for s in range(6):
-                ax_g.axvline(s, color="#1e2d4a", lw=0.8)
-                ax_g.text(s+0.06, 0.27, f"S{s}", fontsize=7.5, color="#8496b0")
-            ax_g.axvline(pred, color="#f0f4ff", lw=1.5, ls="--", alpha=0.5)
-            ax_g.set_xlabel("Disease Severity (0 = No DKD → 5 = Kidney Failure)", fontsize=9)
-            ax_g.spines[["top","right","left"]].set_visible(False)
-            ax_g.set_yticks([])
-            ax_g.text(prog_score+0.07, 0, f"{prog_score:.2f}", fontsize=10, fontweight="700", va="center", color=stage_color)
-            plt.tight_layout()
-            st.pyplot(fig_g, use_container_width=True); plt.close()
-
-            st.markdown("""<div class="rec-block teal">
-              <strong>Want to explore how intervention could change this trajectory?</strong><br>
-              Use the <strong>HbA1c What-If</strong> page to see how blood glucose control affects this
-              patient's risk, or the <strong>Progression Simulation</strong> page for a 24-month outlook.
-            </div>""", unsafe_allow_html=True)
-
-        with tab6:
-            pd = st.session_state.patient
-            sex_l  = "Female" if pd.get("sex_code")==1 else "Male"
-            race_l = {1:"Mexican Am.",2:"Other Hispanic",3:"NH White",
-                      4:"NH Black",6:"NH Asian",7:"Other"}.get(pd.get("race_ethnicity_code"),"—")
-            age_v  = pd.get("age_years", 0)
-            ag     = "<40" if age_v<40 else "40–55" if age_v<55 else "55–65" if age_v<65 else "65+"
-            inc    = pd.get("household_income_cat",8)
-            inc_l  = "Low" if inc<=5 else ("Middle" if inc<=9 else "High")
-
-            cf1,cf2,cf3,cf4 = st.columns(4)
-            with cf1: st.metric("Sex", sex_l)
-            with cf2: st.metric("Ethnicity", race_l)
-            with cf3: st.metric("Age Group", ag)
-            with cf4: st.metric("Income", inc_l)
-
-            st.markdown("""<div class="rec-block blue">
-              <strong>Fairness audit summary:</strong> This system was independently validated across sex,
-              ethnicity, age group, and income tier before deployment. AUC parity within 5 percentage points
-              achieved across all groups. NOTE flags reflect expected population-level disease rate variation,
-              not algorithmic bias. Sensitivity of 100% achieved for Stages 4–5 across all demographic groups.
-            </div>""", unsafe_allow_html=True)
-
-            if "summary_df" in mdl and mdl["summary_df"] is not None:
-                st.markdown('<p class="sect-hdr">Fairness Audit Results</p>', unsafe_allow_html=True)
-                st.dataframe(mdl["summary_df"], use_container_width=True)
-
-        st.markdown("""
-        <div class="disclaimer">
-          <strong>⚠ Clinical Disclaimer:</strong> GlomeraAI is a clinical decision-support tool only.
-          All predictions must be reviewed by a qualified clinician alongside the full patient history,
-          physical examination findings, and current clinical guidelines before informing any clinical
-          decision. Trained on cross-sectional NHANES 2015–2020 data (n=2,627 diabetic adults, AUC 0.961).
-        </div>""", unsafe_allow_html=True)
-
-        st.divider()
-        cl, _, cr = st.columns([2,3,2])
-        with cl:
-            if st.button("Edit Patient Data", use_container_width=True):
-                st.session_state.wizard_step = 0; st.rerun()
-        with cr:
-            if st.button("New Patient", type="primary", use_container_width=True):
-                st.session_state.wizard_step = 0
-                st.session_state.patient = {}
-                st.rerun()
-
-# PAGE 1 — HbA1c What-If Trajectory (CORE NEW FEATURE)
-
-elif st.session_state.page == 1:
+if st.session_state.current_page == 0:
+    st.markdown(stepper_html(0), unsafe_allow_html=True)
 
     st.markdown("""
-    <div style="margin-bottom:1.5rem">
-      <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:800;color:#f0f4ff;margin-bottom:.3rem">
-        HbA1c Intervention What-If
+    <div class="model-badge rf">
+      <h4>Clinical Model (M1) — Blood Tests & Kidney Markers</h4>
+      <p>Key indicators: Creatinine · Urine Albumin · Blood Urea · HbA1c · Haemoglobin</p>
+    </div>""", unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Blood Pressure** *(average of 3 readings)*")
+        sbp1 = st.number_input("Systolic BP — Reading 1 (mmHg)",  80, 220, 130, key="sbp1")
+        dbp1 = st.number_input("Diastolic BP — Reading 1 (mmHg)", 40, 130, 78,  key="dbp1")
+        sbp2 = st.number_input("Systolic BP — Reading 2 (mmHg)",  80, 220, 128, key="sbp2")
+        dbp2 = st.number_input("Diastolic BP — Reading 2 (mmHg)", 40, 130, 76,  key="dbp2")
+        sbp3 = st.number_input("Systolic BP — Reading 3 (mmHg)",  80, 220, 132, key="sbp3")
+        dbp3 = st.number_input("Diastolic BP — Reading 3 (mmHg)", 40, 130, 80,  key="dbp3")
+
+        st.markdown("**Kidney & Urine Markers**")
+        serum_cr  = st.number_input("Serum Creatinine (mg/dL)",    0.2,  20.0,   1.1,   step=0.1, key="serum_cr")
+        urine_alb = st.number_input("Urine Albumin (ug/L)",         0.5,  5000.0, 25.0,  step=0.5, key="urine_alb")
+        urine_cr  = st.number_input("Urine Creatinine (mg/dL)",     5.0,  3000.0, 120.0,           key="urine_cr")
+
+    with col2:
+        st.markdown("**Metabolic & Blood Chemistry**")
+        hba1c      = st.number_input("HbA1c (%)",                 4.0,  20.0,  7.2,  step=0.1, key="hba1c")
+        fasting_gl = st.number_input("Fasting Glucose (mg/dL)",   40.0, 600.0, 145.0,           key="fasting_gl")
+        insulin    = st.number_input("Fasting Insulin (uIU/mL)",  0.0,  300.0, 12.0,            key="insulin")
+        bun        = st.number_input("Blood Urea Nitrogen (mg/dL)",2.0, 150.0, 16.0,            key="bun")
+        uric_acid  = st.number_input("Uric Acid (mg/dL)",         1.0,  20.0,  5.8,  step=0.1, key="uric_acid")
+
+        st.markdown("**Blood Count & Other**")
+        hemoglobin = st.number_input("Haemoglobin (g/dL)",  4.0,  22.0, 13.5, step=0.1, key="hemoglobin")
+        hematocrit = st.number_input("Haematocrit (%)",    10.0,  65.0, 40.0, step=0.5, key="hematocrit")
+        serum_alb  = st.number_input("Serum Albumin (g/dL)", 1.0,  6.0,  4.1, step=0.1, key="serum_alb")
+        crp        = st.number_input("CRP (mg/L)",          0.0,  200.0, 3.5, step=0.1, key="crp")
+
+    st.markdown("**Lipid Panel & Body**")
+    col_a, col_b, col_c = st.columns(3)
+    with col_a:
+        tot_chol = st.number_input("Total Cholesterol (mg/dL)", 50.0,  600.0, 195.0, key="tot_chol")
+        ldl      = st.number_input("LDL Cholesterol (mg/dL)",   20.0,  500.0, 115.0, key="ldl")
+    with col_b:
+        hdl  = st.number_input("HDL Cholesterol (mg/dL)", 10.0,  200.0, 48.0,  key="hdl")
+        trig = st.number_input("Triglycerides (mg/dL)",   20.0, 3000.0, 145.0, key="trig")
+    with col_c:
+        bmi = st.number_input("BMI (kg/m²)", 12.0, 80.0, 28.5, step=0.1, key="bmi")
+
+    mean_sbp = round((sbp1 + sbp2 + sbp3) / 3, 1)
+    mean_dbp = round((dbp1 + dbp2 + dbp3) / 3, 1)
+    uacr     = round(urine_alb / (urine_cr * 10), 2) if urine_cr > 0 else 0.0
+
+    st.markdown(f"""
+    <div class="rec-box blue">
+      <strong>Auto-calculated values:</strong><br>
+      Mean Systolic BP = <strong>{mean_sbp} mmHg</strong> &nbsp;·&nbsp;
+      Mean Diastolic BP = <strong>{mean_dbp} mmHg</strong> &nbsp;·&nbsp;
+      UACR = <strong>{uacr:.1f} mg/g</strong>
+    </div>""", unsafe_allow_html=True)
+
+    st.session_state.patient_data.update({
+        "mean_sbp": mean_sbp, "mean_dbp": mean_dbp,
+        "serum_creatinine_mgdl": serum_cr,
+        "log_serum_creatinine_mgdl": np.log1p(serum_cr),
+        "urine_albumin_ugl": urine_alb,
+        "log_urine_albumin_ugl": np.log1p(urine_alb),
+        "urine_creatinine_mgdl": urine_cr,
+        "uacr_mgg": uacr,
+        "log_uacr": np.log10(max(uacr, 0.01)),
+        "hba1c_pct": hba1c,
+        "fasting_glucose_mgdl": fasting_gl,
+        "log_fasting_glucose_mgdl": np.log1p(fasting_gl),
+        "insulin_uiml": insulin,
+        "log_insulin_uiml": np.log1p(insulin),
+        "bun_mgdl": bun,
+        "log_bun_mgdl": np.log1p(bun),
+        "uric_acid_mgdl": uric_acid,
+        "hemoglobin_gdl": hemoglobin,
+        "hematocrit_pct": hematocrit,
+        "serum_albumin_gdl": serum_alb,
+        "crp_mgL": crp,
+        "log_crp_mgL": np.log1p(crp),
+        "total_cholesterol_mgdl": tot_chol,
+        "ldl_cholesterol_mgdl": ldl,
+        "hdl_cholesterol_mgdl": hdl,
+        "triglycerides_mgdl": trig,
+        "log_triglycerides_mgdl": np.log1p(trig),
+        "bmi_kgm2": bmi,
+    })
+
+    _, col_btn, _ = st.columns([2, 3, 2])
+    with col_btn:
+        if st.button("Continue to Lifestyle", type="primary", use_container_width=True):
+            st.session_state.current_page = 1
+            st.rerun()
+
+
+elif st.session_state.current_page == 1:
+    st.markdown(stepper_html(1), unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="model-badge xgb">
+      <h4>Lifestyle Model (M2) — Medications, Activity & Diet</h4>
+      <p>Key indicators: Kidney Disease History · Hypertension · Insulin Use · Physical Activity · Phosphorus</p>
+    </div>""", unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Medications & Diagnoses**")
+        dm_dx       = st.selectbox("Diabetes Diagnosed?",                  [1, 0], format_func=lambda x: "Yes" if x else "No", key="dm_dx")
+        insulin_use = st.selectbox("Currently using insulin?",             [0, 1], format_func=lambda x: "Yes" if x else "No", key="insulin_use")
+        oral_meds   = st.selectbox("Taking oral diabetes medications?",    [0, 1], format_func=lambda x: "Yes" if x else "No", key="oral_meds")
+        htn_dx      = st.selectbox("Diagnosed with high blood pressure?",  [0, 1], format_func=lambda x: "Yes" if x else "No", key="htn_dx")
+        bp_med      = st.selectbox("Taking blood pressure medication?",    [0, 1], format_func=lambda x: "Yes" if x else "No", key="bp_med")
+        statin      = st.selectbox("Taking statins?",                      [0, 1], format_func=lambda x: "Yes" if x else "No", key="statin")
+
+        st.markdown("**Kidney History**")
+        kidney_hx    = st.selectbox("History of kidney disease?",  [0, 1], format_func=lambda x: "Yes" if x else "No", key="kidney_hx")
+        kidney_stone = st.selectbox("History of kidney stones?",   [0, 1], format_func=lambda x: "Yes" if x else "No", key="kidney_stone")
+        nocturia     = st.selectbox("Waking at night to urinate?", [0, 1], format_func=lambda x: "Yes" if x else "No", key="nocturia")
+
+    with col2:
+        st.markdown("**Physical Activity & Lifestyle**")
+        smoker      = st.selectbox("Smoking status", [0, 1, 2],
+                                   format_func=lambda x: ["Never smoked", "Former smoker", "Current smoker"][x],
+                                   key="smoker")
+        alcohol     = st.number_input("Average alcohol (drinks/day)", 0.0, 20.0, 0.3, step=0.1, key="alcohol")
+        vig_leisure = st.selectbox("Does the patient do vigorous exercise?", [0, 1],
+                                   format_func=lambda x: "Yes" if x else "No", key="vig_leisure")
+        sedentary   = st.number_input("Sedentary time per day (minutes)", 0, 1440, 300, key="sedentary")
+        sleep_h     = st.number_input("Average weekday sleep (hours)", 2.0, 14.0, 7.0, step=0.5, key="sleep_h")
+
+        st.markdown("**Dietary Intake (daily averages)**")
+        sodium     = st.number_input("Dietary Sodium (mg/day)",     100.0, 15000.0, 2800.0, key="sodium")
+        protein    = st.number_input("Dietary Protein (g/day)",       5.0,   400.0,   85.0, key="protein")
+        potassium  = st.number_input("Dietary Potassium (mg/day)",  200.0,  8000.0, 2800.0, key="potassium")
+        phosphorus = st.number_input("Dietary Phosphorus (mg/day)", 100.0,  4000.0, 1100.0, key="phosphorus")
+
+    st.session_state.patient_data.update({
+        "diabetes_diagnosed": dm_dx,
+        "insulin_use": insulin_use,
+        "oral_diabetes_meds": oral_meds,
+        "hypertension_diagnosed": htn_dx,
+        "bp_medication": bp_med,
+        "statin_use": statin,
+        "current_smoker_status": smoker,
+        "avg_alcohol_drinks_per_day": alcohol,
+        "log_avg_alcohol_drinks_per_day": np.log1p(alcohol),
+        "vigorous_leisure_activity": vig_leisure,
+        "sedentary_minutes_per_day": sedentary,
+        "log_sedentary_minutes_per_day": np.log1p(sedentary),
+        "sleep_hours_weekday": sleep_h,
+        "kidney_disease_history": kidney_hx,
+        "kidney_stone_history": kidney_stone,
+        "nocturia": nocturia,
+        "sodium_mg_day": sodium,
+        "protein_g_day": protein,
+        "potassium_mg_day": potassium,
+        "phosphorus_mg_day": phosphorus,
+    })
+
+    col_l, _, col_r = st.columns([2, 2, 2])
+    with col_l:
+        if st.button("Back", use_container_width=True):
+            st.session_state.current_page = 0; st.rerun()
+    with col_r:
+        if st.button("Continue to Demographics", type="primary", use_container_width=True):
+            st.session_state.current_page = 2; st.rerun()
+
+
+elif st.session_state.current_page == 2:
+    st.markdown(stepper_html(2), unsafe_allow_html=True)
+
+    st.markdown("""
+    <div class="model-badge lr">
+      <h4>Demographics Model (M3) — Patient Background & History</h4>
+      <p>Key indicators: Age · Sex · Ethnicity · BMI · Heart Attack History</p>
+    </div>""", unsafe_allow_html=True)
+
+    col1, col2 = st.columns(2)
+    with col1:
+        st.markdown("**Basic Information**")
+        age  = st.number_input("Patient age (years)", 18, 100, 58, key="age")
+        sex  = st.selectbox("Sex", [0, 1], format_func=lambda x: "Male" if x == 0 else "Female", key="sex")
+        race = st.selectbox("Race/Ethnicity", [1, 2, 3, 4, 6, 7],
+                            format_func=lambda x: {1: "Mexican American", 2: "Other Hispanic",
+                                                   3: "Non-Hispanic White", 4: "Non-Hispanic Black",
+                                                   6: "Non-Hispanic Asian", 7: "Other/Multiracial"}[x],
+                            key="race")
+        st.markdown("**Socioeconomic Background**")
+        education = st.selectbox("Highest education level", [1, 2, 3, 4, 5], index=3,
+                                 format_func=lambda x: {1: "Less than 9th grade", 2: "Some high school",
+                                                         3: "High school / GED", 4: "Some college",
+                                                         5: "College graduate or higher"}[x],
+                                 key="education")
+        income = st.selectbox("Household income category",
+                              [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15], index=7,
+                              format_func=lambda x: {1: "< $5,000", 2: "$5–10k", 3: "$10–15k",
+                                                      4: "$15–20k", 5: "$20–25k", 6: "$25–35k",
+                                                      7: "$35–45k", 8: "$45–55k", 9: "$55–65k",
+                                                      10: "$65–75k", 14: "$75–100k",
+                                                      15: "Over $100,000"}[x],
+                              key="income")
+        food_sec = st.number_input("Food security score (0–18)", 0.0, 18.0, 10.0, step=1.0, key="food_sec")
+
+    with col2:
+        st.markdown("**Cardiovascular & Family History**")
+        chd       = st.selectbox("History of coronary heart disease?", [0, 1], format_func=lambda x: "Yes" if x else "No", key="chd")
+        heart_att = st.selectbox("History of heart attack?",           [0, 1], format_func=lambda x: "Yes" if x else "No", key="heart_att")
+        stroke    = st.selectbox("History of stroke?",                 [0, 1], format_func=lambda x: "Yes" if x else "No", key="stroke")
+        fam_hx_dm = st.selectbox("Family history of diabetes?",        [0, 1], format_func=lambda x: "Yes" if x else "No", key="fam_hx_dm")
+
+    race_label = {1: "Mexican American", 2: "Other Hispanic", 3: "Non-Hispanic White",
+                  4: "Non-Hispanic Black", 6: "Non-Hispanic Asian", 7: "Other/Multiracial"}[race]
+    sex_label  = "Female" if sex == 1 else "Male"
+    st.markdown(f"""
+    <div class="rec-box blue">
+      <strong>Patient Profile:</strong> {age}-year-old {sex_label} · {race_label}
+    </div>""", unsafe_allow_html=True)
+
+    st.session_state.patient_data.update({
+        "age_years": age, "sex_code": sex, "race_ethnicity_code": race,
+        "education_level": education, "household_income_cat": income,
+        "food_security_score": food_sec,
+        "coronary_heart_disease": chd, "heart_attack": heart_att,
+        "stroke_ever": stroke, "family_hx_diabetes": fam_hx_dm,
+    })
+
+    col_l, _, col_r = st.columns([2, 2, 2])
+    with col_l:
+        if st.button("Back", use_container_width=True):
+            st.session_state.current_page = 1; st.rerun()
+    with col_r:
+        if st.button("Run AI Assessment", type="primary", use_container_width=True):
+            st.session_state.current_page = 3; st.rerun()
+
+
+elif st.session_state.current_page == 3:
+    st.markdown(stepper_html(3), unsafe_allow_html=True)
+
+    with st.spinner("Running AI analysis..."):
+        df_imp, X1, X2, X3 = build_patient_vector(st.session_state.patient_data, mdl)
+        pred_stage, proba_vec, p1, p2, p3 = run_ensemble(mdl, X1, X2, X3)
+        rf_sv, xgb_sv, lr_sv = compute_shap_patient(mdl, X1, X2, X3)
+        risk_drivers, prot_drivers = progression_risk_profile(rf_sv, X1, pred_stage)
+
+    stage_color = STAGE_COLORS[pred_stage]
+    stage_bg    = STAGE_BG[pred_stage]
+    stage_name  = STAGE_NAMES[pred_stage]
+    rec         = STAGE_RECOMMENDATIONS[pred_stage]
+    prog_score  = sum(c * proba_vec[c] for c in range(N_CLASSES))
+
+    entropy_val  = scipy_entropy(proba_vec)
+    max_entropy  = scipy_entropy([1 / N_CLASSES] * N_CLASSES)
+    uncertainty  = entropy_val / max_entropy
+    confidence_label = ("High confidence" if uncertainty < 0.33 else
+                         "Moderate confidence" if uncertainty < 0.66 else
+                         "Low confidence — review carefully")
+    confidence_color = ("#22c55e" if uncertainty < 0.33 else
+                         "#f59e0b" if uncertainty < 0.66 else "#ef4444")
+
+    forward_prob = float(sum(proba_vec[c] for c in range(pred_stage + 1, N_CLASSES)))
+    if pred_stage < N_CLASSES - 1:
+        if forward_prob >= 0.30:
+            progression_verdict, prog_icon = "YES", "Warning"
+        elif forward_prob >= 0.15:
+            progression_verdict, prog_icon = "POSSIBLE", "Notice"
+        else:
+            progression_verdict, prog_icon = "NO", "OK"
+
+    # Store for use in pages 5 and 6
+    st.session_state["last_pred"]   = pred_stage
+    st.session_state["last_proba"]  = proba_vec
+    st.session_state["last_hba1c"]  = st.session_state.patient_data.get("hba1c_pct", 7.2)
+
+    st.markdown(f"""
+    <div style="background:{stage_bg};border:2px solid {stage_color};border-radius:16px;
+                padding:1.6rem 2rem;margin-bottom:1.2rem">
+      <div style="font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;
+                  color:{stage_color};margin-bottom:.4rem">AI ASSESSMENT RESULT</div>
+      <div style="font-size:2rem;font-weight:800;color:{stage_color};letter-spacing:-.03em">{stage_name}</div>
+      <div style="font-size:.9rem;color:#475569;margin-top:.4rem">{rec['headline']}</div>
+      <div style="margin-top:.8rem">{urgency_chip(rec['urgency'])}</div>
+    </div>""", unsafe_allow_html=True)
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.markdown(f'<div class="metric-tile"><div class="value" style="color:{stage_color}">Stage {pred_stage}</div><div class="label">KDIGO Stage (0–5)</div></div>', unsafe_allow_html=True)
+    with c2:
+        st.markdown(f'<div class="metric-tile"><div class="value" style="color:#0f172a">{proba_vec[pred_stage]*100:.0f}%</div><div class="label">Stage probability</div></div>', unsafe_allow_html=True)
+    with c3:
+        st.markdown(f'<div class="metric-tile"><div class="value" style="color:{confidence_color};font-size:1.1rem;padding-top:.5rem">{confidence_label.split(" ")[0]} {confidence_label.split(" ")[1]}</div><div class="label">AI confidence</div></div>', unsafe_allow_html=True)
+    with c4:
+        st.markdown(f'<div class="metric-tile"><div class="value" style="color:#0f172a">{prog_score:.1f}/5</div><div class="label">Severity score</div></div>', unsafe_allow_html=True)
+
+    st.markdown("<div style='margin-top:.5rem'></div>", unsafe_allow_html=True)
+
+    rec_color_map = {0: "green", 1: "blue", 2: "amber", 3: "red", 4: "red", 5: "slate"}
+    actions_html  = "".join(f"<li style='margin:.3rem 0'>{a}</li>" for a in rec["actions"])
+    st.markdown(f"""
+    <div class="rec-box {rec_color_map[pred_stage]}">
+      <strong>Recommended Clinical Actions:</strong>
+      <ul style="margin:.5rem 0 0;padding-left:1.2rem">{actions_html}</ul>
+    </div>""", unsafe_allow_html=True)
+
+    st.divider()
+
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "Summary", "Clinical Factors (M1)", "Lifestyle Factors (M2)",
+        "Demographic Factors (M3)", "Progression Risk", "Fairness Audit",
+    ])
+
+    with tab1:
+        st.markdown('<p class="sect-hdr">Patient Snapshot</p>', unsafe_allow_html=True)
+        pd_data = st.session_state.patient_data
+        cs1, cs2, cs3 = st.columns(3)
+        with cs1:
+            st.markdown("**Key Clinical Values**")
+            st.write(f"HbA1c: **{pd_data.get('hba1c_pct','N/A'):.1f}%** (target <7%)")
+            st.write(f"UACR: **{pd_data.get('uacr_mgg','N/A'):.1f} mg/g**")
+            st.write(f"BP: **{pd_data.get('mean_sbp','N/A')}/{pd_data.get('mean_dbp','N/A')} mmHg**")
+            st.write(f"BMI: **{pd_data.get('bmi_kgm2','N/A'):.1f} kg/m²**")
+        with cs2:
+            st.markdown("**Model Votes**")
+            st.markdown(f"""
+            <div style="font-size:.85rem">
+              <div style="display:flex;justify-content:space-between;padding:.4rem .6rem;background:#f0f7ff;border-radius:8px;margin:.3rem 0">
+                <span>Clinical (M1)</span><strong style="color:#3b82f6">{p1[pred_stage]*100:.0f}%</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:.4rem .6rem;background:#fff7f0;border-radius:8px;margin:.3rem 0">
+                <span>Lifestyle (M2)</span><strong style="color:#f97316">{p2[pred_stage]*100:.0f}%</strong>
+              </div>
+              <div style="display:flex;justify-content:space-between;padding:.4rem .6rem;background:#faf5ff;border-radius:8px;margin:.3rem 0">
+                <span>Demographics (M3)</span><strong style="color:#8b5cf6">{p3[pred_stage]*100:.0f}%</strong>
+              </div>
+            </div>""", unsafe_allow_html=True)
+        with cs3:
+            st.markdown("**Patient Demographics**")
+            sex_l  = "Female" if pd_data.get("sex_code") == 1 else "Male"
+            race_l = {1: "Mexican American", 2: "Other Hispanic", 3: "NH White",
+                      4: "NH Black", 6: "NH Asian", 7: "Other/Multi"}.get(pd_data.get("race_ethnicity_code"), "N/A")
+            age    = pd_data.get("age_years", 0)
+            inc    = pd_data.get("household_income_cat", 8)
+            inc_l  = "Low (<$25k)" if inc <= 5 else ("Middle ($25–64k)" if inc <= 9 else "High (≥$65k)")
+            st.write(f"Age: **{age} years** · {sex_l}")
+            st.write(f"Ethnicity: **{race_l}**")
+            st.write(f"Income: **{inc_l}**")
+
+        st.markdown('<p class="sect-hdr">Stage Probability Breakdown</p>', unsafe_allow_html=True)
+        fig_dist, ax_dist = plt.subplots(figsize=(10, 2.8))
+        bars = ax_dist.barh([STAGE_NAMES[c] for c in range(N_CLASSES)],
+                            [proba_vec[c] * 100 for c in range(N_CLASSES)],
+                            color=[STAGE_COLORS[c] for c in range(N_CLASSES)],
+                            alpha=0.85, edgecolor="white", linewidth=0.5, height=0.65)
+        for bar, val in zip(bars, proba_vec):
+            ax_dist.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height() / 2,
+                         f"{val*100:.1f}%", va="center", fontsize=8.5, fontweight="600")
+        ax_dist.set_xlabel("Probability (%)", fontsize=9)
+        ax_dist.set_xlim(0, 108)
+        ax_dist.spines[["top", "right"]].set_visible(False)
+        ax_dist.tick_params(labelsize=8.5)
+        plt.tight_layout()
+        st.pyplot(fig_dist, use_container_width=True)
+        plt.close()
+
+    with tab2:
+        st.markdown("""
+        <div class="model-badge rf">
+          <h4>Clinical Model (M1) — Which blood test results drove this prediction?</h4>
+        </div>""", unsafe_allow_html=True)
+        st.markdown(f'<div class="rec-box blue">{SHAP_EXPLAIN}</div>', unsafe_allow_html=True)
+
+        shap_rf_dict = dict(zip(X1.columns.tolist(), rf_sv[0, :, pred_stage]))
+        fig_rf = plot_shap_bar(shap_rf_dict, f"Clinical Factors — Stage {pred_stage} Prediction",
+                               "#ef4444", "#3b82f6", highlight_feats=RF_EXPECTED)
+        if fig_rf:
+            st.pyplot(fig_rf, use_container_width=True); plt.close()
+
+        st.markdown('<p class="sect-hdr">Clinical Factor Influence Across All Stages</p>', unsafe_allow_html=True)
+        top_feats = sorted(shap_rf_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:8]
+        feat_labels = [display_value(f, 0)[0] for f, _ in top_feats]
+        shap_matrix = np.array([[rf_sv[0, list(X1.columns).index(f), c] for f, _ in top_feats]
+                                 for c in range(N_CLASSES)])
+        fig_heat, ax_heat = plt.subplots(figsize=(10, 4))
+        im = ax_heat.imshow(shap_matrix, cmap="RdBu_r", aspect="auto",
+                            norm=mcolors.TwoSlopeNorm(vcenter=0))
+        ax_heat.set_xticks(range(len(feat_labels)))
+        ax_heat.set_xticklabels(feat_labels, rotation=35, ha="right", fontsize=8.5)
+        ax_heat.set_yticks(range(N_CLASSES))
+        ax_heat.set_yticklabels([STAGE_NAMES[c] for c in range(N_CLASSES)], fontsize=8.5)
+        plt.colorbar(im, ax=ax_heat, shrink=0.8, label="SHAP value")
+        ax_heat.set_title("Clinical Factor Influence Heatmap", fontsize=10, fontweight="700")
+        plt.tight_layout()
+        st.pyplot(fig_heat, use_container_width=True); plt.close()
+
+    with tab3:
+        st.markdown("""
+        <div class="model-badge xgb">
+          <h4>Lifestyle Model (M2) — Which lifestyle factors drove this prediction?</h4>
+        </div>""", unsafe_allow_html=True)
+        st.markdown(f'<div class="rec-box amber">{SHAP_EXPLAIN}</div>', unsafe_allow_html=True)
+
+        shap_xgb_dict = dict(zip(X2.columns.tolist(), xgb_sv[0, :, pred_stage]))
+        fig_xgb = plot_shap_bar(shap_xgb_dict, f"Lifestyle Factors — Stage {pred_stage} Prediction",
+                                "#f97316", "#0ea5e9", highlight_feats=XGB_EXPECTED)
+        if fig_xgb:
+            st.pyplot(fig_xgb, use_container_width=True); plt.close()
+
+        st.markdown('<p class="sect-hdr">Model Agreement</p>', unsafe_allow_html=True)
+        fig_comp, ax_comp = plt.subplots(figsize=(10, 3.2))
+        x, w = np.arange(N_CLASSES), 0.26
+        ax_comp.bar(x - w, p1 * 100, w, label="M1 Clinical",     color="#3b82f6", alpha=0.85)
+        ax_comp.bar(x,     p2 * 100, w, label="M2 Lifestyle",    color="#f97316", alpha=0.85)
+        ax_comp.bar(x + w, p3 * 100, w, label="M3 Demographics", color="#8b5cf6", alpha=0.85)
+        ax_comp.set_xticks(x)
+        ax_comp.set_xticklabels([f"Stage {c}" for c in range(N_CLASSES)], fontsize=8.5)
+        ax_comp.set_ylabel("Confidence (%)", fontsize=9)
+        ax_comp.set_title("Agreement Between All Three Models", fontsize=10, fontweight="700")
+        ax_comp.legend(fontsize=8.5)
+        ax_comp.spines[["top", "right"]].set_visible(False)
+        plt.tight_layout()
+        st.pyplot(fig_comp, use_container_width=True); plt.close()
+
+    with tab4:
+        st.markdown("""
+        <div class="model-badge lr">
+          <h4>Demographics Model (M3) — Which patient background factors drove this prediction?</h4>
+        </div>""", unsafe_allow_html=True)
+        st.markdown(f'<div class="rec-box purple">{SHAP_EXPLAIN}</div>', unsafe_allow_html=True)
+
+        if lr_sv is not None:
+            try:
+                shap_lr_dict = (dict(zip(X3.columns.tolist(), lr_sv[pred_stage, 0, :]))
+                                if lr_sv.ndim == 3 else
+                                dict(zip(X3.columns.tolist(), lr_sv[0, :])))
+            except Exception:
+                shap_lr_dict = {}
+
+            if shap_lr_dict:
+                fig_lr = plot_shap_bar(shap_lr_dict, f"Demographic Factors — Stage {pred_stage} Prediction",
+                                       "#8b5cf6", "#06b6d4", highlight_feats=LR_EXPECTED)
+                if fig_lr:
+                    st.pyplot(fig_lr, use_container_width=True); plt.close()
+
+            if lr_sv.ndim == 3 and lr_sv.shape[0] == N_CLASSES:
+                st.markdown('<p class="sect-hdr">Demographic Factor Influence Across All Stages</p>', unsafe_allow_html=True)
+                top_lr = sorted(shap_lr_dict.items(), key=lambda x: abs(x[1]), reverse=True)[:7]
+                lr_feat_labels = [display_value(f, 0)[0] for f, _ in top_lr]
+                lr_shap_matrix = np.array([[lr_sv[c, 0, list(X3.columns).index(f)] for f, _ in top_lr]
+                                            for c in range(N_CLASSES)])
+                fig_lrheat, ax_lrheat = plt.subplots(figsize=(9, 4))
+                im2 = ax_lrheat.imshow(lr_shap_matrix, cmap="RdBu_r", aspect="auto",
+                                       norm=mcolors.TwoSlopeNorm(vcenter=0))
+                ax_lrheat.set_xticks(range(len(lr_feat_labels)))
+                ax_lrheat.set_xticklabels(lr_feat_labels, rotation=35, ha="right", fontsize=8.5)
+                ax_lrheat.set_yticks(range(N_CLASSES))
+                ax_lrheat.set_yticklabels([STAGE_NAMES[c] for c in range(N_CLASSES)], fontsize=8.5)
+                plt.colorbar(im2, ax=ax_lrheat, shrink=0.8, label="SHAP value")
+                ax_lrheat.set_title("Demographic Factor Influence Heatmap", fontsize=10, fontweight="700")
+                plt.tight_layout()
+                st.pyplot(fig_lrheat, use_container_width=True); plt.close()
+
+            st.markdown("""
+            <div class="rec-box purple">
+              <strong>Note on demographic factors:</strong> Differences by age, ethnicity, or sex reflect
+              documented population-level differences in kidney disease rates, not model bias.
+              This system was independently audited for fairness across all demographic groups.
+            </div>""", unsafe_allow_html=True)
+        else:
+            st.warning("Demographic SHAP analysis unavailable for this patient.")
+
+    with tab5:
+        st.markdown('<p class="sect-hdr">Will This Patient\'s Kidney Disease Progress?</p>', unsafe_allow_html=True)
+
+        if pred_stage >= N_CLASSES - 1:
+            st.markdown("""
+            <div class="verdict-no">
+              <div class="verdict-title" style="color:#14532d">Stage 5 — Kidney Replacement Required</div>
+              <div class="verdict-body">Patient is at the most advanced stage. Focus on renal replacement therapy.</div>
+            </div>""", unsafe_allow_html=True)
+        else:
+            next_stage_name = STAGE_NAMES[pred_stage + 1]
+            if progression_verdict == "YES":
+                vhtml = f"""<div class="verdict-yes">
+                  <div class="verdict-title" style="color:#be123c">YES — DISEASE PROGRESSION IS LIKELY</div>
+                  <div class="verdict-body">
+                    <strong>{forward_prob*100:.0f}%</strong> chance of progressing beyond {stage_name}
+                    toward <strong>{next_stage_name}</strong> if risk factors are not addressed.
+                    Prioritise clinical actions and consider nephrology referral.
+                  </div></div>"""
+            elif progression_verdict == "POSSIBLE":
+                vhtml = f"""<div class="verdict-watch">
+                  <div class="verdict-title" style="color:#92400e">POSSIBLE — MONITOR CLOSELY</div>
+                  <div class="verdict-body">
+                    <strong>{forward_prob*100:.0f}%</strong> probability of worsening to <strong>{next_stage_name}</strong>.
+                    With good management, progression may be preventable.
+                    Increase monitoring frequency and review modifiable risk factors.
+                  </div></div>"""
+            else:
+                vhtml = f"""<div class="verdict-no">
+                  <div class="verdict-title" style="color:#14532d">NO — STAGE APPEARS STABLE</div>
+                  <div class="verdict-body">
+                    Only <strong>{forward_prob*100:.0f}%</strong> chance of progression at this time.
+                    Current management appears effective. Continue routine monitoring.
+                  </div></div>"""
+            st.markdown(vhtml, unsafe_allow_html=True)
+
+            if risk_drivers:
+                st.markdown('<p class="sect-hdr">Factors Driving Progression Risk</p>', unsafe_allow_html=True)
+                col_risk, col_prot = st.columns([3, 2])
+                with col_risk:
+                    r_feats = [display_value(f, 0)[0] for f, _ in risk_drivers]
+                    r_vals  = [v for _, v in risk_drivers]
+                    r_raws  = [display_value(f, X1.iloc[0].get(f, np.nan))[1] for f, _ in risk_drivers]
+                    fig_prog, ax_prog = plt.subplots(figsize=(7, max(2.8, len(r_feats) * 0.6)))
+                    bars_p = ax_prog.barh(r_feats[::-1], r_vals[::-1], color="#f43f5e", alpha=0.85, height=0.6)
+                    for bar, raw in zip(bars_p, r_raws[::-1]):
+                        ax_prog.text(bar.get_width() + 0.001, bar.get_y() + bar.get_height() / 2,
+                                     f"{raw:.2f}", va="center", fontsize=8)
+                    ax_prog.set_xlabel(f"Influence toward {next_stage_name}", fontsize=9)
+                    ax_prog.set_title("Risk Factors to Address", fontsize=10, fontweight="700")
+                    ax_prog.spines[["top", "right"]].set_visible(False)
+                    plt.tight_layout()
+                    st.pyplot(fig_prog, use_container_width=True); plt.close()
+                with col_prot:
+                    if prot_drivers:
+                        st.markdown("**Protective factors (slowing progression)**")
+                        for feat, sv in prot_drivers:
+                            disp_name, _ = display_value(feat, X1.iloc[0].get(feat, np.nan))
+                            _, _, desc   = CLINICAL_CONTEXT.get(feat, (None, None, ""))
+                            st.markdown(f"""
+                            <div class="driver-row prot">
+                              <span><strong>{disp_name}</strong><br>
+                                <small style="color:#475569">{desc}</small></span>
+                              <span style="color:#16a34a;font-weight:700">✓</span>
+                            </div>""", unsafe_allow_html=True)
+
+        st.markdown('<p class="sect-hdr">Disease Severity Gauge</p>', unsafe_allow_html=True)
+        fig_gauge, ax_g = plt.subplots(figsize=(9, 1.8))
+        ax_g.barh(["Score"], [prog_score], color=stage_color, alpha=0.85, height=0.45)
+        ax_g.set_xlim(0, 5)
+        for s in range(6):
+            ax_g.axvline(s, color="#e2e8f0", lw=0.8)
+            ax_g.text(s + 0.07, 0.28, f"Stage {s}", fontsize=7.5, color="#64748b")
+        ax_g.axvline(pred_stage, color="#0f172a", lw=2, ls="--", alpha=0.7)
+        ax_g.set_xlabel("Disease Severity (0 = No DKD → 5 = Kidney Failure)", fontsize=9)
+        ax_g.spines[["top", "right", "left"]].set_visible(False)
+        ax_g.set_yticks([])
+        ax_g.text(prog_score + 0.07, 0, f"{prog_score:.2f}", fontsize=10,
+                  fontweight="800", va="center", color=stage_color)
+        plt.tight_layout()
+        st.pyplot(fig_gauge, use_container_width=True); plt.close()
+
+    with tab6:
+        pd_data   = st.session_state.patient_data
+        sex_label = "Female" if pd_data.get("sex_code") == 1 else "Male"
+        race_map  = {1: "Mexican American", 2: "Other Hispanic", 3: "NH White",
+                     4: "NH Black", 6: "NH Asian", 7: "Other/Multi"}
+        race_label = race_map.get(pd_data.get("race_ethnicity_code"), "Unknown")
+        age_v      = pd_data.get("age_years", 0)
+        age_group  = "<40" if age_v < 40 else "40–55" if age_v < 55 else "55–65" if age_v < 65 else "65+"
+        inc        = pd_data.get("household_income_cat", 8)
+        inc_label  = "Low (<$25k)" if inc <= 5 else ("Middle ($25–64k)" if inc <= 9 else "High (≥$65k)")
+
+        cf1, cf2, cf3, cf4 = st.columns(4)
+        with cf1: st.metric("Sex", sex_label)
+        with cf2: st.metric("Ethnicity", race_label)
+        with cf3: st.metric("Age Group", age_group)
+        with cf4: st.metric("Income Tier", inc_label)
+
+        st.markdown("""
+        <div class="rec-box blue">
+          <strong>Fairness audit summary:</strong> This system was tested across sex, ethnicity, age,
+          and income groups before deployment. Performance thresholds applied:
+          <ul style="margin:.5rem 0 0;padding-left:1.2rem">
+            <li>Accuracy gap between groups: no more than 5 percentage points</li>
+            <li>Sensitivity: at least 60% for all groups</li>
+            <li>Sensitivity gap between groups: no more than 15 percentage points</li>
+          </ul>
+          Observed differences reflect real population-level disease rate variation, not AI bias.
+        </div>""", unsafe_allow_html=True)
+
+        if "summary_df" in mdl and mdl["summary_df"] is not None:
+            st.markdown('<p class="sect-hdr">Fairness Audit Results</p>', unsafe_allow_html=True)
+            st.dataframe(mdl["summary_df"], use_container_width=True)
+            st.caption("PASS = meets threshold · FAIL = below threshold · NOTE = expected population difference")
+        else:
+            st.info("Fairness audit table not available in the loaded model file.")
+
+    st.markdown("""
+    <div class="disclaimer">
+      <strong>Clinical Disclaimer:</strong> This system is a decision support tool only and does not replace
+      clinical judgement. All predictions must be reviewed by a qualified clinician alongside the full patient
+      history, physical examination, and current clinical guidelines. Trained on cross-sectional NHANES data
+      (2015–2020, n=2,627); not validated for longitudinal monitoring without repeated assessment.
+    </div>""", unsafe_allow_html=True)
+
+    st.divider()
+    col_back, _, col_new = st.columns([2, 3, 2])
+    with col_back:
+        if st.button("Edit Patient Data", use_container_width=True):
+            st.session_state.current_page = 0; st.rerun()
+    with col_new:
+        if st.button("New Patient", type="primary", use_container_width=True):
+            st.session_state.current_page = 0; st.rerun()
+
+
+elif st.session_state.current_page == 4:
+    from pages.demo_page import show_demo_page
+    show_demo_page(
+        mdl=mdl,
+        CLINICAL_CONTEXT=CLINICAL_CONTEXT,
+        STAGE_NAMES=STAGE_NAMES,
+        STAGE_COLORS=STAGE_COLORS,
+        STAGE_BG=STAGE_BG,
+        STAGE_RECOMMENDATIONS=STAGE_RECOMMENDATIONS,
+        N_CLASSES=N_CLASSES,
+        build_patient_vector=build_patient_vector,
+        run_ensemble=run_ensemble,
+        compute_shap_patient=compute_shap_patient,
+        progression_risk_profile=progression_risk_profile,
+    )
+
+
+elif st.session_state.current_page == 5:
+    st.markdown("""
+    <div style="margin-bottom:1.2rem">
+      <div style="font-size:1.4rem;font-weight:800;color:#0f172a;margin-bottom:.3rem">
+        📈 HbA1c Intervention What-If
       </div>
-      <div style="font-size:.82rem;color:#8496b0;line-height:1.7">
-        Using the actual trained GlomeraAI ensemble, this tool shows how the patient's predicted
-        kidney disease risk changes as HbA1c improves — month by month — over the next 12 months.
-        Every result shown is a real prediction from the validated model.
+      <div style="font-size:.84rem;color:#64748b;line-height:1.7">
+        Uses the actual trained GlomeraAI ensemble to show how predicted kidney disease risk
+        changes as HbA1c improves month by month. Every result is a real model prediction.
+        Complete the patient assessment first to use your patient's data.
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    has_patient = bool(st.session_state.patient)
-    current_hba1c = st.session_state.patient.get("hba1c_pct", 7.2)
+    has_patient = bool(st.session_state.patient_data)
+    current_hba1c = st.session_state.patient_data.get("hba1c_pct", 9.0)
 
     if not has_patient:
-        st.markdown("""<div class="rec-block amber">
-          <strong>No patient loaded.</strong> Complete the Patient Assessment first to use the
-          What-If tool with real patient data. You can also use the manual inputs below to explore
-          a hypothetical patient.
+        st.markdown("""
+        <div class="rec-box amber">
+          No patient loaded. Complete the Patient Assessment first, or adjust the sliders
+          below to explore a hypothetical scenario.
         </div>""", unsafe_allow_html=True)
 
     st.markdown('<p class="sect-hdr">Intervention Scenario</p>', unsafe_allow_html=True)
 
-    col_l, col_r = st.columns([1,1])
+    col_l, col_r = st.columns(2)
     with col_l:
-        hba1c_now = st.slider(
-            "Current HbA1c (%)",
-            min_value=5.5, max_value=14.0,
-            value=float(round(current_hba1c, 1)),
-            step=0.1,
-            help="The patient's current HbA1c reading"
-        )
-        hba1c_goal = st.slider(
-            "Target HbA1c at 12 months (%)",
-            min_value=5.5, max_value=14.0,
-            value=max(5.5, float(round(current_hba1c - 2.0, 1))),
-            step=0.1,
-            help="The clinical target after intervention"
-        )
-
+        hba1c_now  = st.slider("Current HbA1c (%)", 5.5, 14.0,
+                                float(round(current_hba1c, 1)), step=0.1)
+        hba1c_goal = st.slider("Target HbA1c at end of projection (%)", 5.5, 14.0,
+                                max(5.5, float(round(current_hba1c - 2.0, 1))), step=0.1)
     with col_r:
+        n_months = st.slider("Projection horizon (months)", 6, 24, 12, step=6)
         intervention_label = st.selectbox("Intervention type", [
             "Intensive glycaemic management",
             "Lifestyle modification only",
@@ -1248,156 +1267,149 @@ elif st.session_state.page == 1:
             "Combination therapy",
             "Custom (use slider values)",
         ])
-        n_months = st.slider("Projection horizon (months)", 6, 24, 12, step=6)
 
     if hba1c_goal >= hba1c_now:
-        st.markdown("""<div class="rec-block red">
-          Target HbA1c should be lower than the current value to model an improvement.
-          Adjust the sliders so the target is below the current HbA1c.
+        st.markdown("""
+        <div class="rec-box red">
+          Target HbA1c must be lower than the current value to model an improvement.
         </div>""", unsafe_allow_html=True)
     else:
         trajectory = np.linspace(hba1c_now, hba1c_goal, n_months + 1)
 
         if st.button("▶  Run What-If Analysis", type="primary"):
             if not has_patient:
-                # Use default patient with just HbA1c varying
                 base = {
-                    "mean_sbp": 130.0, "mean_dbp": 78.0,
+                    "mean_sbp": 145.0, "mean_dbp": 88.0,
                     "serum_creatinine_mgdl": 1.2, "log_serum_creatinine_mgdl": np.log1p(1.2),
-                    "urine_albumin_ugl": 30.0, "log_urine_albumin_ugl": np.log1p(30.0),
-                    "urine_creatinine_mgdl": 120.0, "uacr_mgg": 0.009,
-                    "log_uacr": np.log10(0.009), "hemoglobin_gdl": 13.5,
-                    "hematocrit_pct": 40.0, "serum_albumin_gdl": 4.1,
-                    "bun_mgdl": 16.0, "log_bun_mgdl": np.log1p(16.0),
-                    "uric_acid_mgdl": 5.8, "crp_mgL": 3.5, "log_crp_mgL": np.log1p(3.5),
-                    "total_cholesterol_mgdl": 195.0, "ldl_cholesterol_mgdl": 115.0,
-                    "hdl_cholesterol_mgdl": 48.0, "triglycerides_mgdl": 145.0,
-                    "log_triglycerides_mgdl": np.log1p(145.0), "bmi_kgm2": 28.5,
-                    "fasting_glucose_mgdl": 145.0, "log_fasting_glucose_mgdl": np.log1p(145.0),
-                    "insulin_uiml": 12.0, "log_insulin_uiml": np.log1p(12.0),
+                    "urine_albumin_ugl": 54000.0, "log_urine_albumin_ugl": np.log1p(54000.0),
+                    "urine_creatinine_mgdl": 120.0, "uacr_mgg": 45.0,
+                    "log_uacr": np.log10(45.0), "hemoglobin_gdl": 13.0,
+                    "hematocrit_pct": 39.0, "serum_albumin_gdl": 4.0,
+                    "bun_mgdl": 18.0, "log_bun_mgdl": np.log1p(18.0),
+                    "uric_acid_mgdl": 5.8, "crp_mgL": 4.0, "log_crp_mgL": np.log1p(4.0),
+                    "total_cholesterol_mgdl": 210.0, "ldl_cholesterol_mgdl": 130.0,
+                    "hdl_cholesterol_mgdl": 42.0, "triglycerides_mgdl": 188.0,
+                    "log_triglycerides_mgdl": np.log1p(188.0), "bmi_kgm2": 31.0,
+                    "fasting_glucose_mgdl": 178.0, "log_fasting_glucose_mgdl": np.log1p(178.0),
+                    "insulin_uiml": 16.0, "log_insulin_uiml": np.log1p(16.0),
                     "hypertension_diagnosed": 1, "kidney_disease_history": 0,
-                    "kidney_stone_history": 0, "insulin_use": 1, "bp_medication": 1,
-                    "diabetes_diagnosed": 1, "oral_diabetes_meds": 0, "statin_use": 0,
-                    "current_smoker_status": 0, "avg_alcohol_drinks_per_day": 0.0,
-                    "log_avg_alcohol_drinks_per_day": 0.0,
-                    "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 300,
-                    "log_sedentary_minutes_per_day": np.log1p(300), "sleep_hours_weekday": 7.0,
-                    "nocturia": 0, "sodium_mg_day": 2800.0, "protein_g_day": 85.0,
-                    "potassium_mg_day": 2800.0, "phosphorus_mg_day": 1100.0,
-                    "age_years": 58, "sex_code": 0, "race_ethnicity_code": 3,
-                    "education_level": 4, "household_income_cat": 8,
-                    "food_security_score": 10.0, "coronary_heart_disease": 0,
+                    "kidney_stone_history": 0, "insulin_use": 0, "bp_medication": 1,
+                    "diabetes_diagnosed": 1, "oral_diabetes_meds": 1, "statin_use": 1,
+                    "current_smoker_status": 0, "avg_alcohol_drinks_per_day": 0.1,
+                    "log_avg_alcohol_drinks_per_day": np.log1p(0.1),
+                    "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 360,
+                    "log_sedentary_minutes_per_day": np.log1p(360), "sleep_hours_weekday": 6.5,
+                    "nocturia": 1, "sodium_mg_day": 3100.0, "protein_g_day": 90.0,
+                    "potassium_mg_day": 2600.0, "phosphorus_mg_day": 1060.0,
+                    "age_years": 55, "sex_code": 1, "race_ethnicity_code": 4,
+                    "education_level": 3, "household_income_cat": 6,
+                    "food_security_score": 9.0, "coronary_heart_disease": 0,
                     "heart_attack": 0, "stroke_ever": 0, "family_hx_diabetes": 1,
                 }
             else:
-                base = dict(st.session_state.patient)
+                base = dict(st.session_state.patient_data)
 
             results_over_time = []
-            with st.spinner(f"Running GlomeraAI at {n_months+1} time points..."):
+            with st.spinner(f"Running GlomeraAI at {n_months + 1} time points..."):
                 for t, hba1c_val in enumerate(trajectory):
-                    patient_t = dict(base)
-                    patient_t["hba1c_pct"] = float(hba1c_val)
-                    patient_t["log_fasting_glucose_mgdl"] = np.log1p(
-                        base.get("fasting_glucose_mgdl", 145.0) * (hba1c_val / hba1c_now)
+                    pt = dict(base)
+                    pt["hba1c_pct"] = float(hba1c_val)
+                    pt["log_fasting_glucose_mgdl"] = np.log1p(
+                        base.get("fasting_glucose_mgdl", 178.0) * (hba1c_val / hba1c_now)
                     )
-                    _, X1t, X2t, X3t = build_vector(patient_t, mdl)
+                    _, X1t, X2t, X3t = build_patient_vector(pt, mdl)
                     pred_t, proba_t, _, _, _ = run_ensemble(mdl, X1t, X2t, X3t)
                     results_over_time.append({
-                        "month": t,
-                        "hba1c": hba1c_val,
-                        "pred": pred_t,
-                        "proba": proba_t.tolist(),
+                        "month": t, "hba1c": hba1c_val,
+                        "pred": pred_t, "proba": proba_t.tolist(),
                     })
 
-            # ── Key metrics ────────────────────────────────────────────────────
-            start_pred  = results_over_time[0]["pred"]
-            end_pred    = results_over_time[-1]["pred"]
             start_proba = results_over_time[0]["proba"]
             end_proba   = results_over_time[-1]["proba"]
-            start_risk  = sum(c * start_proba[c] for c in range(N_CLASSES))
-            end_risk    = sum(c * end_proba[c]   for c in range(N_CLASSES))
-            delta_risk  = end_risk - start_risk
+            start_pred  = results_over_time[0]["pred"]
+            end_pred    = results_over_time[-1]["pred"]
+            sev_start   = sum(c * start_proba[c] for c in range(N_CLASSES))
+            sev_end     = sum(c * end_proba[c]   for c in range(N_CLASSES))
+            delta       = sev_end - sev_start
 
-            m1, m2, m3, m4 = st.columns(4)
-            with m1: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{STAGE_COLORS[start_pred]}">Stage {start_pred}</div><div class="kpi-lbl">Predicted now</div></div>', unsafe_allow_html=True)
-            with m2: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{STAGE_COLORS[end_pred]}">Stage {end_pred}</div><div class="kpi-lbl">At {n_months} months</div></div>', unsafe_allow_html=True)
-            with m3: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:#f59e0b">{hba1c_now:.1f}%→{hba1c_goal:.1f}%</div><div class="kpi-lbl">HbA1c trajectory</div></div>', unsafe_allow_html=True)
-            with m4:
-                d_color = "#10b981" if delta_risk < 0 else "#ef4444"
-                d_sign  = "▼" if delta_risk < 0 else "▲"
-                st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{d_color}">{d_sign}{abs(delta_risk):.2f}</div><div class="kpi-lbl">Severity score change</div></div>', unsafe_allow_html=True)
+            c1, c2, c3, c4 = st.columns(4)
+            with c1:
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[start_pred]}">Stage {start_pred}</div><div class="label">Predicted now</div></div>', unsafe_allow_html=True)
+            with c2:
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[end_pred]}">Stage {end_pred}</div><div class="label">At {n_months} months</div></div>', unsafe_allow_html=True)
+            with c3:
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:#f59e0b;font-size:1.3rem">{hba1c_now:.1f}→{hba1c_goal:.1f}%</div><div class="label">HbA1c trajectory</div></div>', unsafe_allow_html=True)
+            with c4:
+                d_col = "#22c55e" if delta < 0 else "#ef4444"
+                d_sym = "▼" if delta < 0 else "▲"
+                st.markdown(f'<div class="metric-tile"><div class="value" style="color:{d_col}">{d_sym}{abs(delta):.2f}</div><div class="label">Severity score change</div></div>', unsafe_allow_html=True)
 
-            # Verdict banner
-            if delta_risk < -0.3:
-                st.markdown(f"""<div class="rec-block green">
-                  <strong>Clinically meaningful improvement projected.</strong> With HbA1c reduction
-                  from <strong>{hba1c_now:.1f}%</strong> to <strong>{hba1c_goal:.1f}%</strong>,
-                  GlomeraAI projects the severity score to decrease by <strong>{abs(delta_risk):.2f} points</strong>
-                  over {n_months} months. This {intervention_label.lower()} scenario demonstrates measurable
-                  benefit for this patient's kidney risk profile.
+            if delta < -0.3:
+                st.markdown(f"""
+                <div class="rec-box green">
+                  <strong>Clinically meaningful improvement projected.</strong>
+                  Reducing HbA1c from <strong>{hba1c_now:.1f}%</strong> to <strong>{hba1c_goal:.1f}%</strong>
+                  via {intervention_label.lower()} is associated with a severity score decrease
+                  of <strong>{abs(delta):.2f} points</strong> in the model.
                 </div>""", unsafe_allow_html=True)
-            elif delta_risk < 0:
-                st.markdown(f"""<div class="rec-block amber">
-                  <strong>Modest improvement projected.</strong> Severity score reduces by
-                  <strong>{abs(delta_risk):.2f} points</strong> over {n_months} months. Additional
-                  interventions (blood pressure control, dietary modification) may amplify the benefit.
+            elif delta < 0:
+                st.markdown(f"""
+                <div class="rec-box amber">
+                  <strong>Modest improvement projected.</strong>
+                  Severity score decreases by <strong>{abs(delta):.2f} points</strong>.
+                  Additional interventions may amplify the benefit.
                 </div>""", unsafe_allow_html=True)
             else:
-                st.markdown(f"""<div class="rec-block red">
-                  <strong>Risk remains elevated despite HbA1c improvement.</strong> Other risk factors
-                  (creatinine, blood pressure, proteinuria) are driving this patient's risk score.
-                  HbA1c control alone may be insufficient — review full clinical picture.
+                st.markdown("""
+                <div class="rec-box blue">
+                  <strong>Other risk factors are dominant.</strong>
+                  HbA1c control alone shows limited impact for this patient profile.
+                  Review blood pressure, proteinuria, and renal biomarkers.
                 </div>""", unsafe_allow_html=True)
 
-            # ── Trajectory plot ────────────────────────────────────────────────
-            months = [r["month"] for r in results_over_time]
-            pred_stages = [r["pred"] for r in results_over_time]
-            severity_scores = [sum(c * r["proba"][c] for c in range(N_CLASSES)) for r in results_over_time]
-            hba1c_vals = [r["hba1c"] for r in results_over_time]
+            months       = [r["month"] for r in results_over_time]
+            sev_scores   = [sum(c * r["proba"][c] for c in range(N_CLASSES)) for r in results_over_time]
+            hba1c_vals   = [r["hba1c"] for r in results_over_time]
+            proba_matrix = np.array([[r["proba"][c] for c in range(N_CLASSES)]
+                                     for r in results_over_time])
 
             fig, axes = plt.subplots(1, 3, figsize=(14, 4))
 
-            # Plot 1 — HbA1c trajectory
-            axes[0].plot(months, hba1c_vals, color="#f59e0b", lw=2.5, marker="o", markersize=5)
-            axes[0].axhline(7.0, color="#10b981", lw=1, ls="--", alpha=0.7, label="Target <7%")
+            axes[0].plot(months, hba1c_vals, color="#f59e0b", lw=2.5, marker="o", markersize=4)
+            axes[0].axhline(7.0, color="#22c55e", lw=1, ls="--", alpha=0.7, label="Target <7%")
             axes[0].fill_between(months, hba1c_vals, 7.0,
-                                 where=[h > 7.0 for h in hba1c_vals],
-                                 alpha=0.15, color="#ef4444")
-            axes[0].set_title("HbA1c Trajectory", fontsize=10, fontweight="bold")
+                                 where=[h > 7.0 for h in hba1c_vals], alpha=0.12, color="#ef4444")
+            axes[0].set_title("HbA1c Trajectory", fontsize=10, fontweight="700")
             axes[0].set_xlabel("Month"); axes[0].set_ylabel("HbA1c (%)")
-            axes[0].legend(fontsize=8); axes[0].spines[["top","right"]].set_visible(False)
+            axes[0].legend(fontsize=8); axes[0].spines[["top", "right"]].set_visible(False)
 
-            # Plot 2 — Severity score
-            axes[1].plot(months, severity_scores, color="#1a6efc", lw=2.5, marker="o", markersize=5)
-            axes[1].fill_between(months, severity_scores, alpha=0.12, color="#1a6efc")
-            for t, score in enumerate(severity_scores):
-                stage = pred_stages[t]
-                if t == 0 or t == len(months) - 1:
-                    axes[1].annotate(f"S{stage}", (t, score), textcoords="offset points",
-                                     xytext=(0, 8), fontsize=8, ha="center",
-                                     color=STAGE_COLORS[stage], fontweight="bold")
-            axes[1].set_title("Severity Score (Real Model Output)", fontsize=10, fontweight="bold")
+            axes[1].plot(months, sev_scores, color="#3b82f6", lw=2.5, marker="o", markersize=4)
+            axes[1].fill_between(months, sev_scores, alpha=0.1, color="#3b82f6")
+            for t_pt in [0, len(months) - 1]:
+                axes[1].annotate(f"S{results_over_time[t_pt]['pred']}",
+                                 (months[t_pt], sev_scores[t_pt]),
+                                 textcoords="offset points", xytext=(0, 8),
+                                 fontsize=8, ha="center",
+                                 color=STAGE_COLORS[results_over_time[t_pt]["pred"]],
+                                 fontweight="bold")
+            axes[1].set_title("Severity Score (Real Model Output)", fontsize=10, fontweight="700")
             axes[1].set_xlabel("Month"); axes[1].set_ylabel("Severity Score (0–5)")
-            axes[1].set_ylim(0, 5); axes[1].spines[["top","right"]].set_visible(False)
+            axes[1].set_ylim(0, 5); axes[1].spines[["top", "right"]].set_visible(False)
 
-            # Plot 3 — Stage probabilities stacked area
-            stage_proba_matrix = np.array([[r["proba"][c] for c in range(N_CLASSES)]
-                                           for r in results_over_time])
             bottom = np.zeros(len(months))
             for c in range(N_CLASSES):
-                axes[2].fill_between(months, bottom, bottom + stage_proba_matrix[:, c],
-                                     color=STAGE_COLORS[c], alpha=0.8,
+                axes[2].fill_between(months, bottom, bottom + proba_matrix[:, c],
+                                     color=STAGE_COLORS[c], alpha=0.82,
                                      label=STAGE_NAMES[c].split("—")[0].strip())
-                bottom += stage_proba_matrix[:, c]
-            axes[2].set_title("Stage Probability Over Time", fontsize=10, fontweight="bold")
+                bottom += proba_matrix[:, c]
+            axes[2].set_title("Stage Probability Over Time", fontsize=10, fontweight="700")
             axes[2].set_xlabel("Month"); axes[2].set_ylabel("Probability")
             axes[2].set_ylim(0, 1); axes[2].legend(fontsize=7, loc="upper right")
-            axes[2].spines[["top","right"]].set_visible(False)
+            axes[2].spines[["top", "right"]].set_visible(False)
 
             plt.tight_layout()
             st.pyplot(fig, use_container_width=True); plt.close()
 
-            # ── Tabular breakdown ──────────────────────────────────────────────
             st.markdown('<p class="sect-hdr">Monthly Breakdown</p>', unsafe_allow_html=True)
             rows = []
             for r in results_over_time:
@@ -1408,272 +1420,215 @@ elif st.session_state.page == 1:
                     "Severity Score": f"{sum(c * r['proba'][c] for c in range(N_CLASSES)):.3f}",
                     "P(Stage 4+)": f"{sum(r['proba'][c] for c in range(4, N_CLASSES))*100:.1f}%",
                 })
-            tbl_df = pd.DataFrame(rows)
-            st.dataframe(tbl_df, use_container_width=True, hide_index=True)
+            st.dataframe(pd.DataFrame(rows), use_container_width=True, hide_index=True)
 
     st.markdown("""
     <div class="disclaimer">
-      <strong>What this tool is:</strong> A sensitivity analysis using the actual trained GlomeraAI ensemble.
-      Each data point shown is a real model prediction — not a simulation. HbA1c is varied along a
-      linear trajectory; all other patient features remain constant. This reflects the isolated effect of
-      glycaemic control on DKD risk as captured by the trained model.
-      <strong>This does not constitute a clinical prediction of individual patient outcomes.</strong>
-      All outputs require review by a qualified clinician.
+      <strong>What this tool shows:</strong> Each result is a real prediction from the trained GlomeraAI
+      ensemble re-run with a modified HbA1c value. This is a sensitivity analysis — it shows the model's
+      response to hypothetical HbA1c changes, not a prediction of what will clinically happen over time.
+      GlomeraAI was trained on cross-sectional NHANES 2015–2020 data and cannot model longitudinal
+      trajectories. All outputs require clinician review before informing any clinical decision.
     </div>""", unsafe_allow_html=True)
 
-# PAGE 2 — Progression Risk Simulation (SUPPORTING FEATURE)
 
-elif st.session_state.page == 2:
-
+elif st.session_state.current_page == 6:
     st.markdown("""
-    <div style="margin-bottom:1.5rem">
-      <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:800;color:#f0f4ff;margin-bottom:.3rem">
-        Multi-Factor Risk Sensitivity Analysis
+    <div style="margin-bottom:1.2rem">
+      <div style="font-size:1.4rem;font-weight:800;color:#0f172a;margin-bottom:.3rem">
+        ⚙️ Multi-Factor Risk Sensitivity Analysis
       </div>
-      <div style="font-size:.82rem;color:#8496b0;line-height:1.7">
-        Uses the trained GlomeraAI ensemble to show how this patient's DKD risk profile changes
-        as multiple clinical risk factors are simultaneously modified. Every result is a real
-        model prediction — not a simulation or statistical approximation.
-        Clinicians can explore the combined effect of realistic intervention targets
-        before deciding on a management plan.
+      <div style="font-size:.84rem;color:#64748b;line-height:1.7">
+        Uses the trained GlomeraAI ensemble to show how predicted DKD risk changes when
+        multiple clinical risk factors are simultaneously modified. Every result is a real
+        model prediction. Complete the patient assessment first to load patient data.
       </div>
     </div>
     """, unsafe_allow_html=True)
 
-    has_patient = bool(st.session_state.patient)
+    has_patient = bool(st.session_state.patient_data)
 
     if not has_patient:
-        st.markdown("""<div class="rec-block amber">
-          No patient loaded. Complete the Patient Assessment first to run the sensitivity
-          analysis with real patient data.
+        st.markdown("""
+        <div class="rec-box amber">
+          No patient loaded. Complete the Patient Assessment first to run this analysis.
         </div>""", unsafe_allow_html=True)
         st.stop()
 
-    base = dict(st.session_state.patient)
+    base        = dict(st.session_state.patient_data)
     current_pred  = st.session_state.get("last_pred", 2)
     current_proba = st.session_state.get("last_proba", np.array([1/6]*6))
 
-    st.markdown(f"""<div class="rec-block teal">
-      Running sensitivity analysis for current patient —
+    st.markdown(f"""
+    <div class="rec-box blue">
+      Running sensitivity analysis for the current patient —
       <strong>{STAGE_NAMES[current_pred]}</strong>
       (model confidence {current_proba[current_pred]*100:.0f}%).
-      Adjust the target values below and run the analysis to see how the risk profile changes.
+      Adjust the target values below and click Run to see how the risk profile changes.
     </div>""", unsafe_allow_html=True)
 
     st.markdown('<p class="sect-hdr">Set Intervention Targets</p>', unsafe_allow_html=True)
-    st.markdown("""<div style="font-size:.79rem;color:#8496b0;margin-bottom:1rem;line-height:1.6">
-      Each slider represents a modifiable risk factor. Set it to the target value you are considering
-      clinically. The model will be re-run with all selected changes applied simultaneously.
-    </div>""", unsafe_allow_html=True)
 
     col_a, col_b = st.columns(2)
-
     with col_a:
         st.markdown("**Glycaemic Control**")
-        t_hba1c = st.slider(
-            "Target HbA1c (%)",
-            4.0, 14.0,
-            float(round(base.get("hba1c_pct", 9.0), 1)),
-            step=0.1,
-            help="Reducing HbA1c reduces glomerular hyperfiltration and slows albuminuria progression (KDIGO 2024)"
-        )
-        t_glucose = st.slider(
-            "Target Fasting Glucose (mg/dL)",
-            70.0, 400.0,
-            float(round(base.get("fasting_glucose_mgdl", 180.0), 0)),
-            step=5.0
-        )
+        t_hba1c = st.slider("Target HbA1c (%)", 4.0, 14.0,
+                             float(round(base.get("hba1c_pct", 9.0), 1)), step=0.1,
+                             help="KDIGO 2024: HbA1c target <7% reduces albuminuria progression")
+        t_glucose = st.slider("Target Fasting Glucose (mg/dL)", 70.0, 400.0,
+                               float(round(base.get("fasting_glucose_mgdl", 180.0), 0)), step=5.0)
 
         st.markdown("**Blood Pressure**")
-        t_sbp = st.slider(
-            "Target Systolic BP (mmHg)",
-            90, 200,
-            int(round(base.get("mean_sbp", 145.0))),
-            step=1,
-            help="KDIGO 2024 target: <120 mmHg in patients with albuminuria"
-        )
-        t_dbp = st.slider(
-            "Target Diastolic BP (mmHg)",
-            50, 130,
-            int(round(base.get("mean_dbp", 88.0))),
-            step=1
-        )
+        t_sbp = st.slider("Target Systolic BP (mmHg)", 90, 200,
+                           int(round(base.get("mean_sbp", 145.0))), step=1,
+                           help="KDIGO 2024: target <120 mmHg in patients with albuminuria")
+        t_dbp = st.slider("Target Diastolic BP (mmHg)", 50, 130,
+                           int(round(base.get("mean_dbp", 88.0))), step=1)
 
     with col_b:
         st.markdown("**Body Composition & Lipids**")
-        t_bmi = st.slider(
-            "Target BMI (kg/m²)",
-            15.0, 50.0,
-            float(round(base.get("bmi_kgm2", 30.0), 1)),
-            step=0.5,
-            help="BMI reduction reduces insulin resistance and kidney stress"
-        )
-        t_trig = st.slider(
-            "Target Triglycerides (mg/dL)",
-            50.0, 800.0,
-            float(round(base.get("triglycerides_mgdl", 220.0), 0)),
-            step=10.0
-        )
-        t_hdl = st.slider(
-            "Target HDL Cholesterol (mg/dL)",
-            20.0, 120.0,
-            float(round(base.get("hdl_cholesterol_mgdl", 38.0), 1)),
-            step=1.0,
-            help="Low HDL is an independent predictor of DKD progression"
-        )
+        t_bmi = st.slider("Target BMI (kg/m²)", 15.0, 50.0,
+                           float(round(base.get("bmi_kgm2", 30.0), 1)), step=0.5)
+        t_trig = st.slider("Target Triglycerides (mg/dL)", 50.0, 800.0,
+                            float(round(base.get("triglycerides_mgdl", 220.0), 0)), step=10.0)
+        t_hdl = st.slider("Target HDL Cholesterol (mg/dL)", 20.0, 120.0,
+                           float(round(base.get("hdl_cholesterol_mgdl", 38.0), 1)), step=1.0,
+                           help="Low HDL is an independent predictor of DKD progression")
 
-        st.markdown("**Lifestyle Modifications**")
-        t_sedentary = st.slider(
-            "Target sedentary time/day (minutes)",
-            0, 900,
-            int(round(base.get("sedentary_minutes_per_day", 420))),
-            step=30,
-            help="Reducing sedentary time improves insulin sensitivity and cardiovascular outcomes"
-        )
-        t_smoker = st.selectbox(
-            "Smoking status target",
-            [0, 1, 2],
-            index=int(base.get("current_smoker_status", 0)),
-            format_func=lambda x: ["Non-smoker", "Former smoker", "Current smoker"][x],
-            help="Smoking cessation is a KDIGO 2024 recommended intervention"
-        )
+        st.markdown("**Lifestyle**")
+        t_sedentary = st.slider("Target sedentary time/day (minutes)", 0, 900,
+                                 int(round(base.get("sedentary_minutes_per_day", 420))), step=30)
+        t_smoker = st.selectbox("Smoking status target", [0, 1, 2],
+                                 index=int(base.get("current_smoker_status", 0)),
+                                 format_func=lambda x: ["Non-smoker", "Former smoker", "Current smoker"][x])
 
-    if st.button("▶  Run Sensitivity Analysis", type="primary", use_container_width=False):
-
+    if st.button("▶  Run Sensitivity Analysis", type="primary"):
         modified = dict(base)
-        modified["hba1c_pct"]              = t_hba1c
-        modified["fasting_glucose_mgdl"]   = t_glucose
-        modified["log_fasting_glucose_mgdl"] = np.log1p(t_glucose)
-        modified["mean_sbp"]               = float(t_sbp)
-        modified["mean_dbp"]               = float(t_dbp)
-        modified["bmi_kgm2"]               = t_bmi
-        modified["triglycerides_mgdl"]     = t_trig
-        modified["log_triglycerides_mgdl"] = np.log1p(t_trig)
-        modified["hdl_cholesterol_mgdl"]   = t_hdl
-        modified["sedentary_minutes_per_day"]     = t_sedentary
+        modified["hba1c_pct"]                    = t_hba1c
+        modified["fasting_glucose_mgdl"]         = t_glucose
+        modified["log_fasting_glucose_mgdl"]     = np.log1p(t_glucose)
+        modified["mean_sbp"]                     = float(t_sbp)
+        modified["mean_dbp"]                     = float(t_dbp)
+        modified["bmi_kgm2"]                     = t_bmi
+        modified["triglycerides_mgdl"]           = t_trig
+        modified["log_triglycerides_mgdl"]       = np.log1p(t_trig)
+        modified["hdl_cholesterol_mgdl"]         = t_hdl
+        modified["sedentary_minutes_per_day"]    = t_sedentary
         modified["log_sedentary_minutes_per_day"] = np.log1p(t_sedentary)
-        modified["current_smoker_status"]  = t_smoker
+        modified["current_smoker_status"]        = t_smoker
 
         with st.spinner("Running GlomeraAI on baseline and target profiles..."):
-            _, X1b, X2b, X3b = build_vector(base, mdl)
+            _, X1b, X2b, X3b = build_patient_vector(base, mdl)
             pred_b, proba_b, p1b, p2b, p3b = run_ensemble(mdl, X1b, X2b, X3b)
 
-            _, X1m, X2m, X3m = build_vector(modified, mdl)
+            _, X1m, X2m, X3m = build_patient_vector(modified, mdl)
             pred_m, proba_m, p1m, p2m, p3m = run_ensemble(mdl, X1m, X2m, X3m)
 
-        sev_b = sum(c * proba_b[c] for c in range(N_CLASSES))
-        sev_m = sum(c * proba_m[c] for c in range(N_CLASSES))
+        sev_b  = sum(c * proba_b[c] for c in range(N_CLASSES))
+        sev_m  = sum(c * proba_m[c] for c in range(N_CLASSES))
         delta  = sev_m - sev_b
         risk_b = sum(proba_b[c] for c in range(4, N_CLASSES))
         risk_m = sum(proba_m[c] for c in range(4, N_CLASSES))
 
-        st.markdown('<p class="sect-hdr">Comparison: Baseline vs Intervention Targets</p>', unsafe_allow_html=True)
+        st.markdown('<p class="sect-hdr">Baseline vs Intervention Targets</p>', unsafe_allow_html=True)
 
         c1, c2, c3, c4 = st.columns(4)
         with c1:
-            st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{STAGE_COLORS[pred_b]}">Stage {pred_b}</div><div class="kpi-lbl">Current stage</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[pred_b]}">Stage {pred_b}</div><div class="label">Current stage</div></div>', unsafe_allow_html=True)
         with c2:
-            st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{STAGE_COLORS[pred_m]}">Stage {pred_m}</div><div class="kpi-lbl">Stage at targets</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-tile"><div class="value" style="color:{STAGE_COLORS[pred_m]}">Stage {pred_m}</div><div class="label">Stage at targets</div></div>', unsafe_allow_html=True)
         with c3:
-            d_col = "#10b981" if delta < 0 else ("#f59e0b" if delta == 0 else "#ef4444")
+            d_col = "#22c55e" if delta < 0 else ("#64748b" if delta == 0 else "#ef4444")
             d_sym = "▼" if delta < 0 else ("=" if delta == 0 else "▲")
-            st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{d_col}">{d_sym} {abs(delta):.2f}</div><div class="kpi-lbl">Severity score change</div></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="metric-tile"><div class="value" style="color:{d_col}">{d_sym} {abs(delta):.2f}</div><div class="label">Severity score change</div></div>', unsafe_allow_html=True)
         with c4:
-            dr_col = "#10b981" if risk_m < risk_b else "#ef4444"
-            st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{dr_col}">{risk_m*100:.0f}%</div><div class="kpi-lbl">Stage 4+ risk at targets</div></div>', unsafe_allow_html=True)
+            dr_col = "#22c55e" if risk_m < risk_b else "#ef4444"
+            st.markdown(f'<div class="metric-tile"><div class="value" style="color:{dr_col}">{risk_m*100:.0f}%</div><div class="label">Stage 4+ risk at targets</div></div>', unsafe_allow_html=True)
 
         if delta < -0.3:
-            st.markdown(f"""<div class="rec-block green">
-              <strong>Clinically meaningful risk reduction projected by the model.</strong>
-              Achieving these intervention targets is associated with a severity score reduction
-              of <strong>{abs(delta):.2f} points</strong> and a change in predicted stage from
+            st.markdown(f"""
+            <div class="rec-box green">
+              <strong>Clinically meaningful risk reduction projected.</strong>
+              Achieving these targets is associated with a severity score decrease of
+              <strong>{abs(delta):.2f} points</strong> and a change from
               <strong>{STAGE_NAMES[pred_b]}</strong> to <strong>{STAGE_NAMES[pred_m]}</strong>.
-              The model's trained associations suggest these targets are worth prioritising.
             </div>""", unsafe_allow_html=True)
         elif delta < 0:
-            st.markdown(f"""<div class="rec-block amber">
-              <strong>Modest risk reduction.</strong> Severity score decreases by {abs(delta):.2f} points.
-              Additional modifications or pharmacological intervention may be needed to achieve
-              a clinically significant stage change.
+            st.markdown(f"""
+            <div class="rec-box amber">
+              <strong>Modest risk reduction.</strong>
+              Severity score decreases by {abs(delta):.2f} points. Additional interventions
+              may be needed for a clinically significant stage change.
             </div>""", unsafe_allow_html=True)
         elif delta == 0:
-            st.markdown("""<div class="rec-block slate">
-              <strong>No change in model output.</strong> The modified values are similar to baseline.
-              Try more aggressive intervention targets to see model sensitivity.
+            st.markdown("""
+            <div class="rec-box blue">
+              <strong>No change in model output.</strong>
+              The modified values are similar to baseline. Try more aggressive targets.
             </div>""", unsafe_allow_html=True)
         else:
-            st.markdown(f"""<div class="rec-block red">
-              <strong>Model predicts higher risk at these targets.</strong>
-              Review the target values — some may be set higher than baseline.
+            st.markdown("""
+            <div class="rec-box red">
+              <strong>Risk higher at these targets.</strong>
+              Some sliders may be set above baseline — check that targets are improvements.
             </div>""", unsafe_allow_html=True)
 
-        fig_comp, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 4))
+        fig_s, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 4))
 
-        x = np.arange(N_CLASSES)
-        w = 0.38
+        x = np.arange(N_CLASSES); w = 0.38
         ax1.bar(x - w/2, proba_b * 100, w, label="Baseline",
-                color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=0.6)
+                color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=0.5)
         ax1.bar(x + w/2, proba_m * 100, w, label="At targets",
                 color=[STAGE_COLORS[c] for c in range(N_CLASSES)], alpha=1.0)
         ax1.set_xticks(x)
-        ax1.set_xticklabels([f"S{c}" for c in range(N_CLASSES)])
+        ax1.set_xticklabels([f"Stage {c}" for c in range(N_CLASSES)], fontsize=8.5)
         ax1.set_ylabel("Probability (%)")
-        ax1.set_title("Stage Probability: Baseline vs Intervention Targets", fontsize=10, fontweight="bold")
-        ax1.legend(fontsize=9)
-        ax1.spines[["top","right"]].set_visible(False)
-
-        changed = {f: modified[f] - base[f] for f in [
-            "hba1c_pct","mean_sbp","mean_dbp","bmi_kgm2",
-            "triglycerides_mgdl","hdl_cholesterol_mgdl","sedentary_minutes_per_day"
-        ] if f in base and f in modified and abs(modified[f] - base[f]) > 0.01}
+        ax1.set_title("Stage Probability: Baseline vs Intervention Targets", fontsize=10, fontweight="700")
+        ax1.legend(fontsize=9); ax1.spines[["top", "right"]].set_visible(False)
 
         labels_c = {
-            "hba1c_pct": "HbA1c (%)",
-            "mean_sbp": "Systolic BP (mmHg)",
-            "mean_dbp": "Diastolic BP (mmHg)",
-            "bmi_kgm2": "BMI (kg/m²)",
-            "triglycerides_mgdl": "Triglycerides (mg/dL)",
-            "hdl_cholesterol_mgdl": "HDL Cholesterol (mg/dL)",
-            "sedentary_minutes_per_day": "Sedentary Time (min/day)",
+            "hba1c_pct": "HbA1c (%)", "mean_sbp": "Systolic BP",
+            "mean_dbp": "Diastolic BP", "bmi_kgm2": "BMI (kg/m²)",
+            "triglycerides_mgdl": "Triglycerides", "hdl_cholesterol_mgdl": "HDL Cholesterol",
+            "sedentary_minutes_per_day": "Sedentary Time (min)",
         }
+        changed = {f: modified[f] - base[f] for f in labels_c
+                   if f in base and f in modified and abs(modified[f] - base[f]) > 0.01}
 
         if changed:
             feats  = list(changed.keys())
             deltas = [changed[f] for f in feats]
-            colors = ["#10b981" if d < 0 else "#ef4444" for d in deltas]
-            ax2.barh([labels_c.get(f, f) for f in feats], deltas,
-                     color=colors, alpha=0.85)
-            ax2.axvline(0, color="#2d4060", lw=1, ls="--")
+            colors = ["#22c55e" if d < 0 else "#ef4444" for d in deltas]
+            ax2.barh([labels_c[f] for f in feats], deltas, color=colors, alpha=0.85)
+            ax2.axvline(0, color="#374151", lw=1, ls="--")
             ax2.set_xlabel("Change from baseline")
-            ax2.set_title("Input Changes Applied", fontsize=10, fontweight="bold")
-            ax2.spines[["top","right"]].set_visible(False)
-            for spine in ["left"]:
-                ax2.spines[spine].set_visible(True)
+            ax2.set_title("Input Changes Applied", fontsize=10, fontweight="700")
+            ax2.spines[["top", "right"]].set_visible(False)
         else:
             ax2.text(0.5, 0.5, "No changes from baseline",
-                     ha="center", va="center", fontsize=11, color="#8496b0",
+                     ha="center", va="center", fontsize=11, color="#64748b",
                      transform=ax2.transAxes)
             ax2.axis("off")
 
         plt.tight_layout()
-        st.pyplot(fig_comp, use_container_width=True)
-        plt.close()
+        st.pyplot(fig_s, use_container_width=True); plt.close()
 
         st.markdown('<p class="sect-hdr">Per-Model Response</p>', unsafe_allow_html=True)
         pm1, pm2, pm3 = st.columns(3)
-        for col, label, pb, pm, color in [
-            (pm1, "M1 Clinical",     p1b[current_pred], p1m[current_pred], "#1a6efc"),
+        for col, label, pb_val, pm_val, color in [
+            (pm1, "M1 Clinical",     p1b[current_pred], p1m[current_pred], "#3b82f6"),
             (pm2, "M2 Lifestyle",    p2b[current_pred], p2m[current_pred], "#f97316"),
-            (pm3, "M3 Demographics", p3b[current_pred], p3m[current_pred], "#a855f7"),
+            (pm3, "M3 Demographics", p3b[current_pred], p3m[current_pred], "#8b5cf6"),
         ]:
-            diff = pm - pb
-            diff_col = "#10b981" if diff < 0 else ("#ef4444" if diff > 0 else "#8496b0")
+            diff     = pm_val - pb_val
+            diff_col = "#22c55e" if diff < 0 else ("#ef4444" if diff > 0 else "#64748b")
             with col:
-                st.markdown(f"""<div class="glass-card" style="text-align:center">
-                  <div style="font-size:.72rem;color:#8496b0;font-weight:600;
+                st.markdown(f"""
+                <div class="metric-tile">
+                  <div style="font-size:.72rem;color:#64748b;font-weight:600;
                        text-transform:uppercase;letter-spacing:.08em;margin-bottom:.4rem">{label}</div>
-                  <div style="font-family:'DM Mono',monospace;font-size:1.1rem;color:{color}">
-                    {pb*100:.0f}% → {pm*100:.0f}%
+                  <div style="font-family:'JetBrains Mono',monospace;font-size:1.1rem;color:{color}">
+                    {pb_val*100:.0f}% → {pm_val*100:.0f}%
                   </div>
                   <div style="font-size:.75rem;color:{diff_col};margin-top:.3rem;font-weight:700">
                     {"▼" if diff < 0 else "▲"} {abs(diff)*100:.0f}pp
@@ -1683,440 +1638,12 @@ elif st.session_state.page == 2:
     st.markdown("""
     <div class="disclaimer">
       <strong>What this tool shows:</strong> Each result is a real prediction from the trained
-      GlomeraAI ensemble re-run with modified input values. This is a sensitivity analysis — it
-      shows the model's response to hypothetical input changes, not a prediction of what will
-      clinically happen to this patient over time. GlomeraAI was trained on cross-sectional
-      NHANES 2015–2020 data and cannot model longitudinal disease trajectories. All outputs
-      require review by a qualified clinician before informing any clinical decision.
+      GlomeraAI ensemble re-run with modified input values. This is a sensitivity analysis —
+      it shows the model's response to hypothetical input changes, not a prediction of what will
+      clinically happen to this patient. GlomeraAI was trained on cross-sectional NHANES 2015–2020
+      data and cannot model longitudinal disease trajectories. All outputs require clinician review.
     </div>""", unsafe_allow_html=True)
 
-# PAGE 3 — Demo Patients
-# Six pre-loaded patient profiles covering all KDIGO stages 0–5
 
-elif st.session_state.page == 3:
 
-    st.markdown("""
-    <div style="margin-bottom:1.5rem">
-      <div style="font-family:'Playfair Display',serif;font-size:1.6rem;font-weight:800;color:#f0f4ff;margin-bottom:.3rem">
-        Clinical Demo Profiles
-      </div>
-      <div style="font-size:.82rem;color:#8496b0;line-height:1.7">
-        Six representative patient profiles covering every KDIGO stage.
-        Select a profile to run the full GlomeraAI assessment instantly —
-        no manual data entry required.
-      </div>
-    </div>
-    """, unsafe_allow_html=True)
 
-    # ── Six representative patient profiles ────────────────────────────────────
-    DEMO_PATIENTS = {
-        "Stage 0 — Priya, 42F, No DKD": {
-            "label": "Stage 0 — No DKD",
-            "color": "#10b981",
-            "summary": "42-year-old female, well-controlled T2DM, routine monitoring",
-            "clinical_note": "HbA1c well-controlled. No proteinuria. Kidney function normal. Low progression risk. Demonstrates the system's ability to correctly reassure low-risk patients.",
-            "data": {
-                "mean_sbp": 118.0, "mean_dbp": 74.0,
-                "serum_creatinine_mgdl": 0.7, "log_serum_creatinine_mgdl": np.log1p(0.7),
-                "urine_albumin_ugl": 12.0,   "log_urine_albumin_ugl": np.log1p(12.0),
-                "urine_creatinine_mgdl": 140.0, "uacr_mgg": 0.009,
-                "log_uacr": np.log10(0.009),
-                "hba1c_pct": 6.4, "fasting_glucose_mgdl": 112.0,
-                "log_fasting_glucose_mgdl": np.log1p(112.0),
-                "insulin_uiml": 8.0,  "log_insulin_uiml": np.log1p(8.0),
-                "bun_mgdl": 12.0, "log_bun_mgdl": np.log1p(12.0),
-                "uric_acid_mgdl": 4.2, "hemoglobin_gdl": 13.8,
-                "hematocrit_pct": 41.0, "serum_albumin_gdl": 4.3,
-                "crp_mgL": 1.2,   "log_crp_mgL": np.log1p(1.2),
-                "total_cholesterol_mgdl": 175.0, "ldl_cholesterol_mgdl": 98.0,
-                "hdl_cholesterol_mgdl": 58.0, "triglycerides_mgdl": 95.0,
-                "log_triglycerides_mgdl": np.log1p(95.0), "bmi_kgm2": 24.2,
-                "diabetes_diagnosed": 1, "insulin_use": 0, "oral_diabetes_meds": 1,
-                "hypertension_diagnosed": 0, "bp_medication": 0, "statin_use": 0,
-                "current_smoker_status": 0, "avg_alcohol_drinks_per_day": 0.1,
-                "log_avg_alcohol_drinks_per_day": np.log1p(0.1),
-                "vigorous_leisure_activity": 1, "sedentary_minutes_per_day": 180,
-                "log_sedentary_minutes_per_day": np.log1p(180), "sleep_hours_weekday": 7.5,
-                "kidney_disease_history": 0, "kidney_stone_history": 0, "nocturia": 0,
-                "sodium_mg_day": 2100.0, "protein_g_day": 68.0,
-                "potassium_mg_day": 3200.0, "phosphorus_mg_day": 900.0,
-                "age_years": 42, "sex_code": 1, "race_ethnicity_code": 6,
-                "education_level": 5, "household_income_cat": 10,
-                "food_security_score": 15.0, "coronary_heart_disease": 0,
-                "heart_attack": 0, "stroke_ever": 0, "family_hx_diabetes": 1,
-            },
-        },
-        "Stage 1 — Malik, 51M, Microalbuminuria": {
-            "label": "Stage 1 — Microalbuminuria",
-            "color": "#f59e0b",
-            "summary": "51-year-old male, UACR 45 mg/g — early microalbuminuria, eGFR preserved",
-            "clinical_note": "Urine albumin elevated but GFR preserved. HbA1c suboptimal at 8.1%. Early intervention with ACE-I and tighter glycaemic control could halt progression. Demonstrates early detection value.",
-            "data": {
-                "mean_sbp": 134.0, "mean_dbp": 82.0,
-                "serum_creatinine_mgdl": 0.95, "log_serum_creatinine_mgdl": np.log1p(0.95),
-                "urine_albumin_ugl": 54000.0,  "log_urine_albumin_ugl": np.log1p(54000.0),
-                "urine_creatinine_mgdl": 120.0, "uacr_mgg": 45.0,
-                "log_uacr": np.log10(45.0),
-                "hba1c_pct": 8.1, "fasting_glucose_mgdl": 162.0,
-                "log_fasting_glucose_mgdl": np.log1p(162.0),
-                "insulin_uiml": 14.0, "log_insulin_uiml": np.log1p(14.0),
-                "bun_mgdl": 15.0, "log_bun_mgdl": np.log1p(15.0),
-                "uric_acid_mgdl": 5.8, "hemoglobin_gdl": 13.2,
-                "hematocrit_pct": 39.5, "serum_albumin_gdl": 4.1,
-                "crp_mgL": 3.4, "log_crp_mgL": np.log1p(3.4),
-                "total_cholesterol_mgdl": 210.0, "ldl_cholesterol_mgdl": 130.0,
-                "hdl_cholesterol_mgdl": 42.0, "triglycerides_mgdl": 175.0,
-                "log_triglycerides_mgdl": np.log1p(175.0), "bmi_kgm2": 28.8,
-                "diabetes_diagnosed": 1, "insulin_use": 0, "oral_diabetes_meds": 1,
-                "hypertension_diagnosed": 1, "bp_medication": 1, "statin_use": 1,
-                "current_smoker_status": 0, "avg_alcohol_drinks_per_day": 0.5,
-                "log_avg_alcohol_drinks_per_day": np.log1p(0.5),
-                "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 320,
-                "log_sedentary_minutes_per_day": np.log1p(320), "sleep_hours_weekday": 6.5,
-                "kidney_disease_history": 0, "kidney_stone_history": 0, "nocturia": 1,
-                "sodium_mg_day": 3100.0, "protein_g_day": 95.0,
-                "potassium_mg_day": 2600.0, "phosphorus_mg_day": 1200.0,
-                "age_years": 51, "sex_code": 0, "race_ethnicity_code": 4,
-                "education_level": 3, "household_income_cat": 7,
-                "food_security_score": 11.0, "coronary_heart_disease": 0,
-                "heart_attack": 0, "stroke_ever": 0, "family_hx_diabetes": 1,
-            },
-        },
-        "Stage 2 — Anura, 56M, Macroalbuminuria": {
-            "label": "Stage 2 — Macroalbuminuria / Mild GFR",
-            "color": "#f97316",
-            "summary": "56-year-old male, UACR 350 mg/g — macroalbuminuria, eGFR borderline",
-            "clinical_note": "GFR beginning to decline with persistent albuminuria. HbA1c poorly controlled at 9.2%. Nephrology referral indicated. Demonstrates detection at the last stage before moderate damage.",
-            "data": {
-                "mean_sbp": 145.0, "mean_dbp": 88.0,
-                "serum_creatinine_mgdl": 1.56, "log_serum_creatinine_mgdl": np.log1p(1.56),
-                "urine_albumin_ugl": 385000.0, "log_urine_albumin_ugl": np.log1p(385000.0),
-                "urine_creatinine_mgdl": 110.0, "uacr_mgg": 350.0,
-                "log_uacr": np.log10(350.0),
-                "hba1c_pct": 9.2, "fasting_glucose_mgdl": 188.0,
-                "log_fasting_glucose_mgdl": np.log1p(188.0),
-                "insulin_uiml": 22.0, "log_insulin_uiml": np.log1p(22.0),
-                "bun_mgdl": 22.0, "log_bun_mgdl": np.log1p(22.0),
-                "uric_acid_mgdl": 6.5, "hemoglobin_gdl": 12.8,
-                "hematocrit_pct": 38.0, "serum_albumin_gdl": 3.9,
-                "crp_mgL": 5.8, "log_crp_mgL": np.log1p(5.8),
-                "total_cholesterol_mgdl": 225.0, "ldl_cholesterol_mgdl": 148.0,
-                "hdl_cholesterol_mgdl": 38.0, "triglycerides_mgdl": 220.0,
-                "log_triglycerides_mgdl": np.log1p(220.0), "bmi_kgm2": 31.5,
-                "diabetes_diagnosed": 1, "insulin_use": 0, "oral_diabetes_meds": 1,
-                "hypertension_diagnosed": 1, "bp_medication": 1, "statin_use": 1,
-                "current_smoker_status": 1, "avg_alcohol_drinks_per_day": 1.2,
-                "log_avg_alcohol_drinks_per_day": np.log1p(1.2),
-                "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 420,
-                "log_sedentary_minutes_per_day": np.log1p(420), "sleep_hours_weekday": 6.0,
-                "kidney_disease_history": 1, "kidney_stone_history": 0, "nocturia": 1,
-                "sodium_mg_day": 3600.0, "protein_g_day": 105.0,
-                "potassium_mg_day": 2400.0, "phosphorus_mg_day": 1350.0,
-                "age_years": 56, "sex_code": 0, "race_ethnicity_code": 1,
-                "education_level": 2, "household_income_cat": 5,
-                "food_security_score": 8.0, "coronary_heart_disease": 0,
-                "heart_attack": 0, "stroke_ever": 0, "family_hx_diabetes": 0,
-            },
-        },
-        "Stage 3 — Nirmala, 63F, Moderate GFR Decrease": {
-            "label": "Stage 3 — Moderate GFR Decrease",
-            "color": "#ef4444",
-            "summary": "63-year-old female, eGFR 30–44, UACR 200 mg/g, renal anaemia developing",
-            "clinical_note": "Established CKD Stage 3 with significant albuminuria and rising creatinine. Anaemia developing. Urgent nephrology co-management required. Demonstrates the system's urgency flagging.",
-            "data": {
-                "mean_sbp": 152.0, "mean_dbp": 92.0,
-                "serum_creatinine_mgdl": 1.55, "log_serum_creatinine_mgdl": np.log1p(1.55),
-                "urine_albumin_ugl": 90000.0, "log_urine_albumin_ugl": np.log1p(90000.0),
-                "urine_creatinine_mgdl": 90.0, "uacr_mgg": 100.0,
-                "log_uacr": np.log10(100.0),
-                "hba1c_pct": 9.8, "fasting_glucose_mgdl": 210.0,
-                "log_fasting_glucose_mgdl": np.log1p(210.0),
-                "insulin_uiml": 38.0, "log_insulin_uiml": np.log1p(38.0),
-                "bun_mgdl": 22.0, "log_bun_mgdl": np.log1p(22.0),
-                "uric_acid_mgdl": 7.2, "hemoglobin_gdl": 11.8,
-                "hematocrit_pct": 33.5, "serum_albumin_gdl": 3.5,
-                "crp_mgL": 9.2, "log_crp_mgL": np.log1p(9.2),
-                "total_cholesterol_mgdl": 240.0, "ldl_cholesterol_mgdl": 162.0,
-                "hdl_cholesterol_mgdl": 32.0, "triglycerides_mgdl": 310.0,
-                "log_triglycerides_mgdl": np.log1p(310.0), "bmi_kgm2": 33.8,
-                "diabetes_diagnosed": 1, "insulin_use": 1, "oral_diabetes_meds": 0,
-                "hypertension_diagnosed": 1, "bp_medication": 1, "statin_use": 1,
-                "current_smoker_status": 0, "avg_alcohol_drinks_per_day": 0.2,
-                "log_avg_alcohol_drinks_per_day": np.log1p(0.2),
-                "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 540,
-                "log_sedentary_minutes_per_day": np.log1p(540), "sleep_hours_weekday": 5.5,
-                "kidney_disease_history": 1, "kidney_stone_history": 1, "nocturia": 1,
-                "sodium_mg_day": 3200.0, "protein_g_day": 88.0,
-                "potassium_mg_day": 2200.0, "phosphorus_mg_day": 1150.0,
-                "age_years": 63, "sex_code": 1, "race_ethnicity_code": 4,
-                "education_level": 2, "household_income_cat": 3,
-                "food_security_score": 6.0, "coronary_heart_disease": 1,
-                "heart_attack": 0, "stroke_ever": 0, "family_hx_diabetes": 1,
-            },
-        },
-        "Stage 4 — Rajan, 69M, Severe GFR Decrease": {
-            "label": "Stage 4 — Severe GFR Decrease",
-            "color": "#a855f7",
-            "summary": "69-year-old male, eGFR 15–29, UACR 500 mg/g, severe renal anaemia",
-            "clinical_note": "Near end-stage renal disease. Severe anaemia, markedly elevated creatinine and BUN. Dialysis planning underway. Demonstrates the system's emergency flagging and referral pathway.",
-            "data": {
-                "mean_sbp": 165.0, "mean_dbp": 98.0,
-                "serum_creatinine_mgdl": 2.6,  "log_serum_creatinine_mgdl": np.log1p(2.6),
-                "urine_albumin_ugl": 300000.0, "log_urine_albumin_ugl": np.log1p(300000.0),
-                "urine_creatinine_mgdl": 75.0, "uacr_mgg": 400.0,
-                "log_uacr": np.log10(400.0),
-                "hba1c_pct": 10.5, "fasting_glucose_mgdl": 240.0,
-                "log_fasting_glucose_mgdl": np.log1p(240.0),
-                "insulin_uiml": 55.0, "log_insulin_uiml": np.log1p(55.0),
-                "bun_mgdl": 38.0, "log_bun_mgdl": np.log1p(38.0),
-                "uric_acid_mgdl": 8.5, "hemoglobin_gdl": 10.2,
-                "hematocrit_pct": 28.0, "serum_albumin_gdl": 3.1,
-                "crp_mgL": 18.5, "log_crp_mgL": np.log1p(18.5),
-                "total_cholesterol_mgdl": 195.0, "ldl_cholesterol_mgdl": 110.0,
-                "hdl_cholesterol_mgdl": 28.0, "triglycerides_mgdl": 280.0,
-                "log_triglycerides_mgdl": np.log1p(280.0), "bmi_kgm2": 26.5,
-                "diabetes_diagnosed": 1, "insulin_use": 1, "oral_diabetes_meds": 0,
-                "hypertension_diagnosed": 1, "bp_medication": 1, "statin_use": 1,
-                "current_smoker_status": 2, "avg_alcohol_drinks_per_day": 0.0,
-                "log_avg_alcohol_drinks_per_day": 0.0,
-                "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 660,
-                "log_sedentary_minutes_per_day": np.log1p(660), "sleep_hours_weekday": 5.0,
-                "kidney_disease_history": 1, "kidney_stone_history": 0, "nocturia": 1,
-                "sodium_mg_day": 2800.0, "protein_g_day": 55.0,
-                "potassium_mg_day": 1800.0, "phosphorus_mg_day": 800.0,
-                "age_years": 69, "sex_code": 0, "race_ethnicity_code": 3,
-                "education_level": 3, "household_income_cat": 4,
-                "food_security_score": 7.0, "coronary_heart_disease": 1,
-                "heart_attack": 1, "stroke_ever": 0, "family_hx_diabetes": 1,
-            },
-        },
-        "Stage 5 — Kamala, 72F, Kidney Failure": {
-            "label": "Stage 5 — Kidney Failure",
-            "color": "#94a3b8",
-            "summary": "72-year-old female, eGFR <15, UACR 800 mg/g, critical renal failure",
-            "clinical_note": "End-stage renal disease requiring renal replacement therapy. Severe anaemia, critical electrolyte imbalances, profound albuminuria. Demonstrates complete staging capability across all 6 classes.",
-            "data": {
-                "mean_sbp": 178.0, "mean_dbp": 104.0,
-                "serum_creatinine_mgdl": 5.0,  "log_serum_creatinine_mgdl": np.log1p(5.0),
-                "urine_albumin_ugl": 385000.0, "log_urine_albumin_ugl": np.log1p(385000.0),
-                "urine_creatinine_mgdl": 55.0, "uacr_mgg": 700.0,
-                "log_uacr": np.log10(700.0),
-                "hba1c_pct": 11.8, "fasting_glucose_mgdl": 290.0,
-                "log_fasting_glucose_mgdl": np.log1p(290.0),
-                "insulin_uiml": 72.0, "log_insulin_uiml": np.log1p(72.0),
-                "bun_mgdl": 72.0, "log_bun_mgdl": np.log1p(72.0),
-                "uric_acid_mgdl": 10.8, "hemoglobin_gdl": 8.2,
-                "hematocrit_pct": 23.5, "serum_albumin_gdl": 2.6,
-                "crp_mgL": 32.0, "log_crp_mgL": np.log1p(32.0),
-                "total_cholesterol_mgdl": 168.0, "ldl_cholesterol_mgdl": 88.0,
-                "hdl_cholesterol_mgdl": 22.0, "triglycerides_mgdl": 320.0,
-                "log_triglycerides_mgdl": np.log1p(320.0), "bmi_kgm2": 22.1,
-                "diabetes_diagnosed": 1, "insulin_use": 1, "oral_diabetes_meds": 0,
-                "hypertension_diagnosed": 1, "bp_medication": 1, "statin_use": 0,
-                "current_smoker_status": 0, "avg_alcohol_drinks_per_day": 0.0,
-                "log_avg_alcohol_drinks_per_day": 0.0,
-                "vigorous_leisure_activity": 0, "sedentary_minutes_per_day": 900,
-                "log_sedentary_minutes_per_day": np.log1p(900), "sleep_hours_weekday": 4.5,
-                "kidney_disease_history": 1, "kidney_stone_history": 1, "nocturia": 1,
-                "sodium_mg_day": 1800.0, "protein_g_day": 45.0,
-                "potassium_mg_day": 1400.0, "phosphorus_mg_day": 600.0,
-                "age_years": 72, "sex_code": 1, "race_ethnicity_code": 2,
-                "education_level": 1, "household_income_cat": 2,
-                "food_security_score": 4.0, "coronary_heart_disease": 1,
-                "heart_attack": 1, "stroke_ever": 1, "family_hx_diabetes": 1,
-            },
-        },
-    }
-
-    # ── Stage selector cards ───────────────────────────────────────────────────
-    st.markdown('<p class="sect-hdr">Select a Patient Profile</p>', unsafe_allow_html=True)
-
-    col1, col2, col3 = st.columns(3)
-    cols_cycle = [col1, col2, col3, col1, col2, col3]
-
-    for col, (name, profile) in zip(cols_cycle, DEMO_PATIENTS.items()):
-        with col:
-            color = profile["color"]
-            st.markdown(f"""
-            <div style="background:rgba(255,255,255,.03);border:1px solid {color}40;
-                 border-left:4px solid {color};border-radius:12px;
-                 padding:.9rem 1.1rem;margin-bottom:.5rem">
-              <div style="font-size:.7rem;font-weight:700;color:{color};
-                   text-transform:uppercase;letter-spacing:.1em;margin-bottom:.3rem">
-                {profile['label']}
-              </div>
-              <div style="font-size:.83rem;font-weight:600;color:#f0f4ff;margin-bottom:.3rem">
-                {name.split('—')[1].strip() if '—' in name else name}
-              </div>
-              <div style="font-size:.76rem;color:#8496b0;line-height:1.5">
-                {profile['summary']}
-              </div>
-            </div>
-            """, unsafe_allow_html=True)
-            if st.button(f"Run Assessment", key=f"demo_{name}", use_container_width=True):
-                st.session_state["selected_demo"] = name
-                st.rerun()
-
-    # ── Run selected demo ──────────────────────────────────────────────────────
-    selected = st.session_state.get("selected_demo")
-
-    if selected and selected in DEMO_PATIENTS:
-        profile = DEMO_PATIENTS[selected]
-        patient_data = profile["data"]
-
-        st.divider()
-        st.markdown(f"""
-        <div style="font-family:'Playfair Display',serif;font-size:1.2rem;font-weight:800;
-             color:{profile['color']};margin-bottom:.3rem">
-          {profile['label']} — Assessment Running
-        </div>
-        <div style="font-size:.82rem;color:#8496b0;margin-bottom:1rem">
-          {profile['clinical_note']}
-        </div>
-        """, unsafe_allow_html=True)
-
-        with st.spinner("Running full GlomeraAI assessment..."):
-            df_imp, X1, X2, X3 = build_vector(patient_data, mdl)
-            pred, proba, p1, p2, p3 = run_ensemble(mdl, X1, X2, X3)
-            rf_sv, xgb_sv, lr_sv = get_shap(mdl, X1, X2, X3)
-
-        rec         = STAGE_RECS[pred]
-        stage_color = STAGE_COLORS[pred]
-        prog_score  = sum(c * proba[c] for c in range(N_CLASSES))
-        entropy_val = scipy_entropy(proba)
-        uncertainty = entropy_val / scipy_entropy([1/N_CLASSES]*N_CLASSES)
-        conf_label  = ("High confidence" if uncertainty < 0.33 else
-                       "Moderate" if uncertainty < 0.66 else "Low — review carefully")
-        conf_color  = ("#10b981" if uncertainty < 0.33 else
-                       "#f59e0b" if uncertainty < 0.66 else "#ef4444")
-        forward_p   = float(sum(proba[c] for c in range(pred+1, N_CLASSES)))
-
-        # Store for What-If page
-        st.session_state["last_pred"]   = pred
-        st.session_state["last_proba"]  = proba
-        st.session_state["last_hba1c"]  = patient_data.get("hba1c_pct", 7.2)
-        st.session_state["patient"]     = patient_data
-
-        # Result hero
-        st.markdown(f"""
-        <div class="stage-result-card" style="color:{stage_color};
-             background:rgba(11,20,38,0.6);border-color:{stage_color}40">
-          <div style="font-size:.68rem;font-weight:700;text-transform:uppercase;
-               letter-spacing:.14em;color:{stage_color};margin-bottom:.5rem">
-            GlomeraAI ASSESSMENT RESULT
-          </div>
-          <div style="font-size:2rem;font-weight:800;letter-spacing:-.03em;color:{stage_color}">
-            {STAGE_NAMES[pred]}
-          </div>
-          <div style="font-size:.88rem;color:#8496b0;margin:.5rem 0">{rec['headline']}</div>
-          <div>{urgency_chip(rec['urgency'])}</div>
-        </div>""", unsafe_allow_html=True)
-
-        c1, c2, c3, c4 = st.columns(4)
-        with c1: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{stage_color}">Stage {pred}</div><div class="kpi-lbl">KDIGO Stage</div></div>', unsafe_allow_html=True)
-        with c2: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:#f0f4ff">{proba[pred]*100:.0f}%</div><div class="kpi-lbl">Confidence</div></div>', unsafe_allow_html=True)
-        with c3: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:{conf_color};font-size:1.1rem;padding-top:.4rem">{conf_label}</div><div class="kpi-lbl">AI Certainty</div></div>', unsafe_allow_html=True)
-        with c4: st.markdown(f'<div class="kpi-tile"><div class="kpi-val" style="color:#f0f4ff">{prog_score:.2f}/5</div><div class="kpi-lbl">Severity Score</div></div>', unsafe_allow_html=True)
-
-        # Plain-language narrative
-        shap_rf = dict(zip(X1.columns.tolist(), rf_sv[0, :, pred]))
-        top3 = sorted(shap_rf.items(), key=lambda x: abs(x[1]), reverse=True)[:3]
-        narrative_parts = []
-        for feat, sv in top3:
-            name_f = display_name(feat)
-            raw    = display_val(feat, float(df_imp[feat].iloc[0]))
-            direction = "elevated" if sv > 0 else "lower than expected"
-            desc = CLINICAL_CONTEXT.get(feat, ("", None, ""))[2]
-            narrative_parts.append(f"<strong>{name_f}</strong> ({raw:.2f}) is {direction} — {desc}")
-        st.markdown(f"""<div class="rec-block teal">
-          <strong>Why this prediction?</strong><br>
-          {';&nbsp; '.join(narrative_parts)}.
-        </div>""", unsafe_allow_html=True)
-
-        # Recommendations
-        st.markdown(f"""<div class="rec-block {rec['color']}">
-          <strong>Recommended Clinical Actions</strong>
-          <ul style="margin:.5rem 0 0;padding-left:1.2rem">
-            {''.join(f"<li style='margin:.3rem 0'>{a}</li>" for a in rec['actions'])}
-          </ul>
-        </div>""", unsafe_allow_html=True)
-
-        # Two column: probabilities + model votes
-        col_left, col_right = st.columns([3, 2])
-
-        with col_left:
-            st.markdown('<p class="sect-hdr">Stage Probability Breakdown</p>', unsafe_allow_html=True)
-            fig_d, ax_d = plt.subplots(figsize=(8, 2.8))
-            bars = ax_d.barh([STAGE_NAMES[c] for c in range(N_CLASSES)],
-                             [proba[c]*100 for c in range(N_CLASSES)],
-                             color=[STAGE_COLORS[c] for c in range(N_CLASSES)],
-                             alpha=0.85, height=0.62)
-            for bar, val in zip(bars, proba):
-                if val > 0.01:
-                    ax_d.text(bar.get_width()+.5, bar.get_y()+bar.get_height()/2,
-                              f"{val*100:.1f}%", va="center", fontsize=8.5, fontweight="600")
-            ax_d.set_xlabel("Probability (%)", fontsize=9)
-            ax_d.set_xlim(0, 110)
-            ax_d.spines[["top","right"]].set_visible(False)
-            plt.tight_layout()
-            st.pyplot(fig_d, use_container_width=True); plt.close()
-
-        with col_right:
-            st.markdown('<p class="sect-hdr">Three-Model Agreement</p>', unsafe_allow_html=True)
-            for lbl, prob, color in [
-                ("M1 Clinical",     p1[pred], "#1a6efc"),
-                ("M2 Lifestyle",    p2[pred], "#f97316"),
-                ("M3 Demographics", p3[pred], "#a855f7"),
-            ]:
-                pct = int(prob * 100)
-                st.markdown(f"""
-                <div style="margin:.5rem 0">
-                  <div style="display:flex;justify-content:space-between;
-                       font-size:.82rem;margin-bottom:.25rem">
-                    <span>{lbl}</span>
-                    <strong style="color:{color};font-family:'DM Mono',monospace">{pct}%</strong>
-                  </div>
-                  <div style="background:rgba(255,255,255,.06);border-radius:4px;height:6px;overflow:hidden">
-                    <div style="width:{pct}%;height:100%;background:{color};border-radius:4px;
-                         transition:width .6s ease"></div>
-                  </div>
-                </div>""", unsafe_allow_html=True)
-
-            st.markdown(f"""
-            <div style="margin-top:1rem;padding:.8rem 1rem;background:rgba(255,255,255,.03);
-                 border:1px solid rgba(255,255,255,.07);border-radius:10px;font-size:.8rem">
-              <strong>Severity gauge</strong><br>
-              <div style="display:flex;align-items:center;gap:.5rem;margin-top:.4rem">
-                <div style="flex:1;background:rgba(255,255,255,.06);border-radius:4px;height:8px;overflow:hidden">
-                  <div style="width:{int(prog_score/5*100)}%;height:100%;
-                       background:linear-gradient(90deg,#10b981,#f59e0b,#ef4444);border-radius:4px"></div>
-                </div>
-                <span style="font-family:'DM Mono',monospace;font-size:.75rem;color:{stage_color};font-weight:700">
-                  {prog_score:.2f}/5
-                </span>
-              </div>
-            </div>""", unsafe_allow_html=True)
-
-        # SHAP
-        st.markdown('<p class="sect-hdr">Clinical Factor Influence (SHAP)</p>', unsafe_allow_html=True)
-        fig_shap = plot_shap_bar(shap_rf, f"Clinical Biomarkers — {STAGE_NAMES[pred]}", "#ef4444", "#1a6efc", top_n=8)
-        if fig_shap:
-            st.pyplot(fig_shap, use_container_width=True); plt.close()
-
-        # CTA to HbA1c page
-        if pred > 0:
-            st.markdown(f"""<div class="rec-block teal">
-              <strong>Next step:</strong> Use the
-              <strong>HbA1c What-If</strong> page to model how glycaemic control could
-              reduce this patient's risk score — powered by the actual GlomeraAI model.
-            </div>""", unsafe_allow_html=True)
-            if st.button("→ Open HbA1c What-If for this patient", type="primary"):
-                st.session_state.page = 1; st.rerun()
-
-        st.markdown("""
-        <div class="disclaimer">
-          <strong>⚠ Clinical Disclaimer:</strong> These are synthetic representative patient profiles
-          for demonstration purposes only. All GlomeraAI predictions shown are real outputs from
-          the trained ensemble model validated on NHANES 2015–2020 (n=2,627, AUC 0.961).
-          All outputs require review by a qualified clinician before informing any clinical decision.
-        </div>""", unsafe_allow_html=True)
